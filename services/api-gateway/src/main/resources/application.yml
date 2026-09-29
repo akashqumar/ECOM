@@ -1,0 +1,99 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: false
+      routes:
+        # User Service routes
+        - id: user-service-auth
+          uri: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:8081}
+          predicates:
+            - Path=/api/auth/**
+        - id: user-service-users
+          uri: http://${USER_SERVICE_HOST:localhost}:${USER_SERVICE_PORT:8081}
+          predicates:
+            - Path=/api/users/**
+
+        # Catalog Service routes
+        - id: catalog-service-products
+          uri: http://${CATALOG_SERVICE_HOST:localhost}:${CATALOG_SERVICE_PORT:8082}
+          predicates:
+            - Path=/api/products/**
+        - id: catalog-service-categories
+          uri: http://${CATALOG_SERVICE_HOST:localhost}:${CATALOG_SERVICE_PORT:8082}
+          predicates:
+            - Path=/api/categories/**
+
+        # Cart Service routes
+        - id: cart-service
+          uri: http://${CART_SERVICE_HOST:localhost}:${CART_SERVICE_PORT:8083}
+          predicates:
+            - Path=/api/cart/**
+
+        # Order Service routes
+        - id: order-service-checkout
+          uri: http://${ORDER_SERVICE_HOST:localhost}:${ORDER_SERVICE_PORT:8084}
+          predicates:
+            - Path=/api/checkout/**
+        - id: order-service-orders
+          uri: http://${ORDER_SERVICE_HOST:localhost}:${ORDER_SERVICE_PORT:8084}
+          predicates:
+            - Path=/api/orders/**
+
+        # Inventory Service routes
+        - id: inventory-service
+          uri: http://${INVENTORY_SERVICE_HOST:localhost}:${INVENTORY_SERVICE_PORT:8085}
+          predicates:
+            - Path=/api/inventory/**
+
+        # Payment Service routes
+        - id: payment-service
+          uri: http://${PAYMENT_SERVICE_HOST:localhost}:${PAYMENT_SERVICE_PORT:8086}
+          predicates:
+            - Path=/api/payments/**
+
+        # Notification Service routes
+        - id: notification-service
+          uri: http://${NOTIFICATION_SERVICE_HOST:localhost}:${NOTIFICATION_SERVICE_PORT:8087}
+          predicates:
+            - Path=/api/notifications/**
+
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins: "*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders: "*"
+            exposedHeaders:
+              - Authorization
+              - X-User-Id
+              - X-User-Role
+              - X-Correlation-Id
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:404E635266556A586E3272357538782F413F4428472B4B6250645367566B5970}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus,metrics
+  metrics:
+    tags:
+      application: ${spring.application.name}

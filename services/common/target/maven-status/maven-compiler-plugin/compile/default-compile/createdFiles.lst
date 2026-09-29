@@ -1,0 +1,12 @@
+com/ecom/common/dto/ErrorResponse$ValidationError.class
+com/ecom/common/exception/IdempotencyConflictException.class
+com/ecom/common/constant/CommonConstants.class
+com/ecom/common/event/EventType.class
+com/ecom/common/exception/InsufficientStockException.class
+com/ecom/common/exception/ResourceNotFoundException.class
+com/ecom/common/exception/BusinessRuleException.class
+com/ecom/common/dto/ApiResponse.class
+com/ecom/common/event/CloudEvent.class
+com/ecom/common/exception/UnauthorizedException.class
+com/ecom/common/util/JsonUtils.class
+com/ecom/common/dto/ErrorResponse.class

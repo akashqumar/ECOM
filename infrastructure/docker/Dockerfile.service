@@ -1,0 +1,7 @@
+# Multi-stage build for Spring Boot services
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+ARG JAR_FILE
+COPY ${JAR_FILE} app.jar
+EXPOSE 8080
+ENTRYPOINT ["java", "-XX:+UseZGC", "-XX:+ZGenerational", "-Djava.security.egd=file:/dev/./urandom", "-jar", "app.jar"]
