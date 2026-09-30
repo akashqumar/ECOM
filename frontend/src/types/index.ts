@@ -38,24 +38,32 @@ export interface Product {
   status: string;
   rating: number;
   reviewCount: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface CartItem {
   productId: string;
-  productName: string;
+  name: string;         // backend field name
   sku: string;
-  unitPrice: number;
+  price: number;        // backend field name
   quantity: number;
   subtotal: number;
   imageUrl?: string;
+  // frontend aliases (optional compat)
+  productName?: string;
+  unitPrice?: number;
 }
 
 export interface Cart {
   userId: string;
   items: CartItem[];
-  totalAmount: number;
-  itemCount: number;
+  totalQuantity: number;   // backend field name
+  subtotalAmount: number;  // backend field name
   updatedAt: string;
+  // aliases for convenience
+  itemCount?: number;
+  totalAmount?: number;
 }
 
 export interface OrderItem {
@@ -128,4 +136,19 @@ export interface Page<T> {
   totalPages: number;
   size: number;
   number: number;
+}
+
+export interface InventoryItem {
+  id: string;
+  productId: string;
+  availableQuantity: number;
+  reservedQuantity: number;
+  totalQuantity: number;
+  warehouseId: string;
+  lowStock: boolean;
+  updatedAt: string;
+}
+
+export interface StockAdjustmentRequest {
+  delta: number;
 }

@@ -34,6 +34,9 @@ public class InventoryReplyListener {
     public void handleInventoryReply(String message) {
         try {
             JsonNode root = objectMapper.readTree(message);
+            if (root.isTextual()) {
+                root = objectMapper.readTree(root.asText());
+            }
             String eventId = root.path("eventId").asText();
             String eventTypeStr = root.path("eventType").asText();
 

@@ -62,7 +62,11 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
         String authHeader = request.getHeaders().getFirst(HttpHeaders.AUTHORIZATION);
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            if (isPublicPath) {
+            if (isPublicPath || path.startsWith("/api/cart")) {
+                String existingUserId = request.getHeaders().getFirst("X-User-Id");
+                if (existingUserId == null || existingUserId.isBlank()) {
+                    requestBuilder.header("X-User-Id", "guest-" + UUID.randomUUID().toString().substring(0, 8));
+                }
                 return chain.filter(exchange.mutate().request(requestBuilder.build()).build());
             } else {
                 log.warn("Missing or invalid Authorization header for secured route: {}", path);

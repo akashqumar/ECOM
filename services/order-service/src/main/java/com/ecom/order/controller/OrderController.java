@@ -66,4 +66,26 @@ public class OrderController {
         OrderTimelineResponse timeline = orderService.getOrderTimeline(id);
         return ResponseEntity.ok(ApiResponse.success("Order timeline retrieved successfully", timeline));
     }
+
+    @GetMapping("/orders/all")
+    public ResponseEntity<ApiResponse<Page<OrderResponse>>> getAllOrders(
+            @PageableDefault(size = 20, sort = "createdAt", direction = org.springframework.data.domain.Sort.Direction.DESC) Pageable pageable) {
+
+        Page<OrderResponse> orders = orderService.getAllOrders(pageable);
+        return ResponseEntity.ok(ApiResponse.success("All platform orders retrieved successfully", orders));
+    }
+
+    @PutMapping("/orders/{id}/status")
+    public ResponseEntity<ApiResponse<OrderResponse>> updateOrderStatus(
+            @PathVariable("id") String id,
+            @RequestBody Map<String, String> body) {
+
+        String statusStr = body.get("status");
+        String trackingNumber = body.get("trackingNumber");
+        String carrier = body.get("carrier");
+        String notes = body.get("notes");
+
+        OrderResponse order = orderService.updateOrderStatus(id, statusStr, trackingNumber, carrier, notes);
+        return ResponseEntity.ok(ApiResponse.success("Order status updated successfully to " + statusStr, order));
+    }
 }

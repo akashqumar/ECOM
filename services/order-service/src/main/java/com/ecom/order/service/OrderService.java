@@ -176,6 +176,48 @@ public class OrderService {
     }
 
     @Transactional(readOnly = true)
+    public Page<OrderResponse> getAllOrders(Pageable pageable) {
+        return orderRepository.findAll(pageable).map(this::toDto);
+    }
+
+    @Transactional
+    public OrderResponse updateOrderStatus(String orderId, String statusStr, String trackingNumber, String carrier, String notes) {
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
+
+        OrderStatus newStatus;
+        try {
+            newStatus = OrderStatus.valueOf(statusStr.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("Invalid order status: " + statusStr);
+        }
+
+        order.setStatus(newStatus);
+        Order savedOrder = orderRepository.save(order);
+
+        // Emit outbox events for relevant status changes
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("orderId", savedOrder.getId());
+        payload.put("orderNumber", savedOrder.getOrderNumber());
+        payload.put("userId", savedOrder.getUserId());
+        payload.put("status", newStatus.name());
+        if (trackingNumber != null) payload.put("trackingNumber", trackingNumber);
+        if (carrier != null) payload.put("carrier", carrier);
+        if (notes != null) payload.put("notes", notes);
+
+        if (newStatus == OrderStatus.SHIPPED) {
+            saveOutboxEvent("ORDER", savedOrder.getId(), EventType.ORDER_SHIPPED, payload);
+        } else if (newStatus == OrderStatus.DELIVERED) {
+            saveOutboxEvent("ORDER", savedOrder.getId(), EventType.ORDER_DELIVERED, payload);
+        } else if (newStatus == OrderStatus.CANCELLED) {
+            saveOutboxEvent("ORDER", savedOrder.getId(), EventType.ORDER_CANCELLED, payload);
+        }
+
+        log.info("Admin updated order {} status to {}", orderId, newStatus);
+        return toDto(savedOrder);
+    }
+
+    @Transactional(readOnly = true)
     public OrderTimelineResponse getOrderTimeline(String orderId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("Order not found with id: " + orderId));
@@ -223,6 +265,39 @@ public class OrderService {
                     "ORDER_CONFIRMED",
                     "Order Confirmed",
                     "Order verified and sent to fulfillment",
+                    order.getUpdatedAt(),
+                    "COMPLETED"
+            ));
+        }
+
+        if (order.getStatus() == OrderStatus.PROCESSING ||
+            order.getStatus() == OrderStatus.SHIPPED ||
+            order.getStatus() == OrderStatus.DELIVERED) {
+            timeline.add(new OrderTimelineResponse.TimelineEventDto(
+                    "ORDER_PROCESSING",
+                    "Order in Processing",
+                    "Fulfillment team is preparing package",
+                    order.getUpdatedAt(),
+                    "COMPLETED"
+            ));
+        }
+
+        if (order.getStatus() == OrderStatus.SHIPPED ||
+            order.getStatus() == OrderStatus.DELIVERED) {
+            timeline.add(new OrderTimelineResponse.TimelineEventDto(
+                    "ORDER_SHIPPED",
+                    "Order Shipped",
+                    "Package dispatched with delivery carrier",
+                    order.getUpdatedAt(),
+                    "COMPLETED"
+            ));
+        }
+
+        if (order.getStatus() == OrderStatus.DELIVERED) {
+            timeline.add(new OrderTimelineResponse.TimelineEventDto(
+                    "ORDER_DELIVERED",
+                    "Order Delivered",
+                    "Package successfully delivered to customer",
                     order.getUpdatedAt(),
                     "COMPLETED"
             ));

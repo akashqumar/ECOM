@@ -1,0 +1,25 @@
+# Build artifacts
+target/
+**/target/
+dist/
+**/dist/
+build/
+**/build/
+
+# Node dependencies
+node_modules/
+**/node_modules/
+
+# Logs and runtime files
+.logs/
+.pids/
+*.log
+nohup.out
+**/nohup.out
+
+# IDE and OS files
+.DS_Store
+**/.DS_Store
+.idea/
+*.iml
+.vscode/

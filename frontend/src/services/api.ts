@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { ApiResponse, AuthResponse, Product, Category, Cart, Order, OrderTimeline, NotificationItem, Page } from '../types';
+import { ApiResponse, AuthResponse, User, Product, Category, Cart, Order, OrderTimeline, NotificationItem, Page, InventoryItem } from '../types';
 
 const api = axios.create({
   baseURL: '/api',
@@ -29,6 +29,17 @@ export const authApi = {
   },
 };
 
+export const userApi = {
+  getProfile: async (): Promise<ApiResponse<User>> => {
+    const res = await api.get('/users/me');
+    return res.data;
+  },
+  updateProfile: async (data: { firstName: string; lastName: string; phone?: string }): Promise<ApiResponse<User>> => {
+    const res = await api.put('/users/me', data);
+    return res.data;
+  },
+};
+
 export const catalogApi = {
   getCategories: async (): Promise<ApiResponse<Category[]>> => {
     const res = await api.get('/categories');
@@ -49,8 +60,15 @@ export const cartApi = {
     const res = await api.get('/cart');
     return res.data;
   },
-  addItem: async (productId: string, quantity: number): Promise<ApiResponse<Cart>> => {
-    const res = await api.post('/cart/items', { productId, quantity });
+  addItem: async (product: { id: string; sku: string; name: string; price: number; images?: string[] }, quantity: number): Promise<ApiResponse<Cart>> => {
+    const res = await api.post('/cart/items', {
+      productId: product.id,
+      sku: product.sku,
+      name: product.name,
+      price: product.price,
+      quantity,
+      imageUrl: product.images && product.images.length > 0 ? product.images[0] : ''
+    });
     return res.data;
   },
   updateQuantity: async (productId: string, quantity: number): Promise<ApiResponse<Cart>> => {
@@ -92,6 +110,17 @@ export const orderApi = {
     const res = await api.post(`/orders/${id}/cancel`, { reason });
     return res.data;
   },
+  getAllOrders: async (params?: { page?: number; size?: number }): Promise<ApiResponse<Page<Order>>> => {
+    const res = await api.get('/orders/all', { params });
+    return res.data;
+  },
+  updateOrderStatus: async (
+    id: string,
+    update: { status: string; trackingNumber?: string; carrier?: string; notes?: string }
+  ): Promise<ApiResponse<Order>> => {
+    const res = await api.put(`/orders/${id}/status`, update);
+    return res.data;
+  },
 };
 
 export const notificationApi = {
@@ -101,6 +130,21 @@ export const notificationApi = {
   },
   markAsRead: async (id: string): Promise<ApiResponse<void>> => {
     const res = await api.put(`/notifications/${id}/read`);
+    return res.data;
+  },
+};
+
+export const inventoryApi = {
+  getAll: async (): Promise<ApiResponse<InventoryItem[]>> => {
+    const res = await api.get('/inventory');
+    return res.data;
+  },
+  getByProductId: async (productId: string): Promise<ApiResponse<InventoryItem>> => {
+    const res = await api.get(`/inventory/${productId}`);
+    return res.data;
+  },
+  adjustStock: async (productId: string, delta: number): Promise<ApiResponse<InventoryItem>> => {
+    const res = await api.put(`/inventory/${productId}/adjust`, { delta });
     return res.data;
   },
 };

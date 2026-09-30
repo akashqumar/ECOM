@@ -34,6 +34,9 @@ public class NotificationEventListener {
     public void handleNotificationEvents(String message) {
         try {
             JsonNode root = objectMapper.readTree(message);
+            if (root.isTextual()) {
+                root = objectMapper.readTree(root.asText());
+            }
             String eventId = root.path("eventId").asText();
             String eventTypeStr = root.path("eventType").asText();
 
@@ -67,6 +70,30 @@ public class NotificationEventListener {
                             "EMAIL",
                             "Order Cancelled",
                             "Your order could not be completed and has been cancelled. Reason: " + reason
+                    );
+                }
+                case ORDER_SHIPPED -> {
+                    String userId = payload.has("userId") ? payload.path("userId").asText() : "user-demo";
+                    String orderNumber = payload.has("orderNumber") ? payload.path("orderNumber").asText() : orderId;
+                    String tracking = payload.has("trackingNumber") ? payload.path("trackingNumber").asText() : "TRK-" + System.currentTimeMillis();
+                    String carrier = payload.has("carrier") ? payload.path("carrier").asText() : "Express Logistics";
+                    notificationService.createNotification(
+                            userId,
+                            orderId,
+                            "EMAIL",
+                            "Order Shipped: " + orderNumber,
+                            "Good news! Your order #" + orderNumber + " has been shipped via " + carrier + " (Tracking #: " + tracking + "). Track progress in your account."
+                    );
+                }
+                case ORDER_DELIVERED -> {
+                    String userId = payload.has("userId") ? payload.path("userId").asText() : "user-demo";
+                    String orderNumber = payload.has("orderNumber") ? payload.path("orderNumber").asText() : orderId;
+                    notificationService.createNotification(
+                            userId,
+                            orderId,
+                            "EMAIL",
+                            "Order Delivered: " + orderNumber,
+                            "Your order #" + orderNumber + " has been successfully delivered. Thank you for shopping with AuraCommerce!"
                     );
                 }
                 default -> log.debug("Notification service ignoring event: {}", eventType);
