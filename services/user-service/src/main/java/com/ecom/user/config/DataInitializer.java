@@ -29,44 +29,57 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        if (!userRepository.existsByEmail("demo@example.com")) {
-            User demoCustomer = new User(
-                    "demo@example.com",
-                    passwordEncoder.encode("password123"),
-                    "Alex",
-                    "Morgan",
-                    "+1 (555) 234-5678",
-                    "ROLE_CUSTOMER"
-            );
-            User savedDemo = userRepository.save(demoCustomer);
+        userRepository.findByEmail("demo@example.com").ifPresentOrElse(
+                demo -> {
+                    demo.setPasswordHash(passwordEncoder.encode("password123"));
+                    userRepository.save(demo);
+                },
+                () -> {
+                    User demoCustomer = new User(
+                            "demo@example.com",
+                            passwordEncoder.encode("password123"),
+                            "Alex",
+                            "Morgan",
+                            "+1 (555) 234-5678",
+                            "ROLE_CUSTOMER"
+                    );
+                    User savedDemo = userRepository.save(demoCustomer);
 
-            Address demoAddress = new Address(
-                    savedDemo.getId(),
-                    "Alex Morgan",
-                    "+1 (555) 234-5678",
-                    "742 Evergreen Terrace",
-                    "Apt 4B",
-                    "Springfield",
-                    "OR",
-                    "97477",
-                    "United States",
-                    true
-            );
-            addressRepository.save(demoAddress);
-            log.info("Initialized demo customer account: demo@example.com / password123");
-        }
+                    Address demoAddress = new Address(
+                            savedDemo.getId(),
+                            "Alex Morgan",
+                            "+1 (555) 234-5678",
+                            "742 Evergreen Terrace",
+                            "Apt 4B",
+                            "Springfield",
+                            "OR",
+                            "97477",
+                            "United States",
+                            true
+                    );
+                    addressRepository.save(demoAddress);
+                    log.info("Initialized demo customer account: demo@example.com / password123");
+                }
+        );
 
-        if (!userRepository.existsByEmail("admin@example.com")) {
-            User demoAdmin = new User(
-                    "admin@example.com",
-                    passwordEncoder.encode("admin123"),
-                    "Platform",
-                    "Administrator",
-                    "+1 (555) 999-0000",
-                    "ROLE_ADMIN"
-            );
-            userRepository.save(demoAdmin);
-            log.info("Initialized demo admin account: admin@example.com / admin123");
-        }
+        userRepository.findByEmail("admin@example.com").ifPresentOrElse(
+                admin -> {
+                    admin.setPasswordHash(passwordEncoder.encode("admin123"));
+                    admin.setRole("ROLE_ADMIN");
+                    userRepository.save(admin);
+                },
+                () -> {
+                    User demoAdmin = new User(
+                            "admin@example.com",
+                            passwordEncoder.encode("admin123"),
+                            "Platform",
+                            "Administrator",
+                            "+1 (555) 999-0000",
+                            "ROLE_ADMIN"
+                    );
+                    userRepository.save(demoAdmin);
+                    log.info("Initialized demo admin account: admin@example.com / admin123");
+                }
+        );
     }
 }
