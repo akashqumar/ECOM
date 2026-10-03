@@ -1,6 +1,9 @@
-# AuraCommerce — Distributed Cloud-Native E-Commerce Platform
+# AuraCommerce / Lumé — Distributed Cloud-Native E-Commerce Platform
 
-A production-grade, distributed microservices e-commerce platform demonstrating **Event-Driven Architecture (EDA)**, **Saga Pattern Orchestration**, **Transactional Outbox**, **Zero-Overselling Concurrency Control**, **Database-per-Service Isolation**, and a modern **React 19 + Vite + Tailwind CSS** storefront.
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Vercel-success?style=for-the-badge&logo=vercel)](https://frontend-gamma-hazel-45.vercel.app)
+**Live Frontend**: [https://frontend-gamma-hazel-45.vercel.app](https://frontend-gamma-hazel-45.vercel.app)
+
+A production-grade, distributed microservices e-commerce platform demonstrating **Event-Driven Architecture (EDA)**, **Saga Pattern Orchestration**, **Transactional Outbox**, **Zero-Overselling Concurrency Control**, **Database-per-Service Isolation**, and a modern **React 19 + Vite** storefront.
 
 ---
 
