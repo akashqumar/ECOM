@@ -1,0 +1,17 @@
+# Multi-stage Dockerfile for Spring Boot Microservices
+FROM eclipse-temurin:21-jdk-alpine AS builder
+WORKDIR /workspace
+ARG SERVICE_NAME
+COPY . .
+RUN if [ -f "services/${SERVICE_NAME}/target/${SERVICE_NAME}-1.0.0-SNAPSHOT.jar" ]; then \
+      cp "services/${SERVICE_NAME}/target/${SERVICE_NAME}-1.0.0-SNAPSHOT.jar" app.jar; \
+    else \
+      ./mvnw clean package -pl services/${SERVICE_NAME} -am -DskipTests && \
+      cp services/${SERVICE_NAME}/target/*.jar app.jar; \
+    fi
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=builder /workspace/app.jar app.jar
+ENV JAVA_OPTS="-XX:+UseZGC -XX:+ZGenerational -XX:MaxRAMPercentage=75.0"
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar app.jar"]
