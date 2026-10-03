@@ -3,7 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, useCart, useToast } from '../context/AppContext';
 import { orderApi } from '../services/api';
 import { giftCardService, GiftCard } from '../services/giftCardService';
-import { CheckCircle2, AlertCircle, Gift, Sparkles, Check, X } from 'lucide-react';
+import { CheckCircle2, AlertCircle, Gift, Sparkles, Check, X, CreditCard, Smartphone, ShieldCheck, MapPin } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { user } = useAuth();
@@ -12,6 +12,8 @@ export default function CheckoutPage() {
   const navigate = useNavigate();
 
   const [address, setAddress] = useState('742 Evergreen Terrace, Springfield, OR 97477');
+  const [savedAddressSelected, setSavedAddressSelected] = useState('home');
+  const [paymentMethod, setPaymentMethod] = useState<'card' | 'apple_pay' | 'google_pay'>('card');
   const [email, setEmail] = useState(user?.email || '');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -166,12 +168,44 @@ export default function CheckoutPage() {
             </section>
 
             <section style={styles.section}>
-              <h2 style={styles.sectionTitle}>Shipping Address</h2>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                <h2 style={styles.sectionTitle}>Shipping Address</h2>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {[
+                    { id: 'home', label: 'Primary Residence', val: '742 Evergreen Terrace, Springfield, OR 97477' },
+                    { id: 'office', label: 'Executive Suite', val: '500 Madison Ave, Fl 18, New York, NY 10022' },
+                  ].map(preset => (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      onClick={() => {
+                        setSavedAddressSelected(preset.id);
+                        setAddress(preset.val);
+                      }}
+                      style={{
+                        padding: '4px 10px',
+                        borderRadius: 'var(--r-full)',
+                        fontSize: 11,
+                        fontWeight: 600,
+                        background: savedAddressSelected === preset.id ? 'var(--c-accent)' : 'var(--c-bg-alt)',
+                        color: savedAddressSelected === preset.id ? 'var(--c-accent-fg)' : 'var(--c-text-2)',
+                        border: '1px solid var(--c-border)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <div style={styles.inputGroup}>
                 <textarea 
                   value={address}
-                  onChange={e => setAddress(e.target.value)}
-                  placeholder="Full address"
+                  onChange={e => {
+                    setAddress(e.target.value);
+                    setSavedAddressSelected('custom');
+                  }}
+                  placeholder="Full street address, apartment, suite, unit"
                   required
                   rows={3}
                   style={styles.textarea}
@@ -315,7 +349,7 @@ export default function CheckoutPage() {
             </section>
 
             <section style={styles.section}>
-              <h2 style={styles.sectionTitle}>Payment</h2>
+              <h2 style={styles.sectionTitle}>Payment Method</h2>
               {total === 0 ? (
                 <div style={{
                   padding: '20px',
@@ -331,24 +365,92 @@ export default function CheckoutPage() {
                   <div>
                     <div style={{ fontWeight: 700, fontSize: '14px' }}>Order Fully Covered by Gift Card</div>
                     <div style={{ fontSize: '13px', color: 'var(--c-text-2)', marginTop: '2px' }}>
-                      No credit card charge is required for this transaction.
+                      No secondary credit card charge is required for this transaction.
                     </div>
                   </div>
                 </div>
               ) : (
                 <>
-                  <div style={styles.mockCard}>
-                    <div style={styles.mockCardTop}>
-                      <span style={styles.mockCardType}>Visa</span>
-                      <span style={styles.mockCardDots}>•••• 4242</span>
-                    </div>
-                    <div style={styles.mockCardBottom}>
-                      <span>Lumé Customer</span>
-                      <span>12/26</span>
-                    </div>
+                  {/* Payment Method Tabs */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 16 }}>
+                    {[
+                      { id: 'card' as const, label: 'Credit Card', icon: <CreditCard size={16} /> },
+                      { id: 'apple_pay' as const, label: 'Apple Pay', icon: <Smartphone size={16} /> },
+                      { id: 'google_pay' as const, label: 'Google Pay', icon: <ShieldCheck size={16} /> },
+                    ].map(pm => (
+                      <button
+                        key={pm.id}
+                        type="button"
+                        onClick={() => setPaymentMethod(pm.id)}
+                        style={{
+                          padding: '10px 8px',
+                          borderRadius: 'var(--r-md)',
+                          background: paymentMethod === pm.id ? 'var(--c-accent)' : 'var(--c-surface-raised)',
+                          color: paymentMethod === pm.id ? 'var(--c-accent-fg)' : 'var(--c-text-1)',
+                          border: paymentMethod === pm.id ? '1px solid var(--c-accent)' : '1px solid var(--c-border)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          gap: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          transition: 'all var(--transition)',
+                        }}
+                      >
+                        {pm.icon}
+                        <span>{pm.label}</span>
+                      </button>
+                    ))}
                   </div>
+
+                  {paymentMethod === 'card' ? (
+                    <div style={styles.mockCard}>
+                      <div style={styles.mockCardTop}>
+                        <span style={styles.mockCardType}>Visa</span>
+                        <span style={styles.mockCardDots}>•••• 4242</span>
+                      </div>
+                      <div style={styles.mockCardBottom}>
+                        <span>Lumé Preferred Client</span>
+                        <span>12/28</span>
+                      </div>
+                    </div>
+                  ) : paymentMethod === 'apple_pay' ? (
+                    <div style={{
+                      padding: '24px',
+                      borderRadius: 'var(--r-lg)',
+                      background: '#000',
+                      color: '#FFF',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 8,
+                      textAlign: 'center',
+                    }}>
+                      <Smartphone size={28} />
+                      <div style={{ fontWeight: 700, fontSize: 15 }}>Apple Pay Ready</div>
+                      <div style={{ fontSize: 12, opacity: 0.75 }}>Double-click side button or confirm with Touch ID</div>
+                    </div>
+                  ) : (
+                    <div style={{
+                      padding: '24px',
+                      borderRadius: 'var(--r-lg)',
+                      background: 'var(--c-surface-raised)',
+                      border: '1px solid var(--c-border)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 8,
+                      textAlign: 'center',
+                    }}>
+                      <ShieldCheck size={28} color="var(--c-accent-2)" />
+                      <div style={{ fontWeight: 700, fontSize: 15, color: 'var(--c-text-1)' }}>Google Pay Ready</div>
+                      <div style={{ fontSize: 12, color: 'var(--c-text-2)' }}>1-Tap biometrics with Google Account</div>
+                    </div>
+                  )}
+
                   <p style={styles.paymentDisclaimer}>
-                    {giftCardDiscount > 0 ? `Remaining $${total.toFixed(2)} will be charged to simulated card.` : 'Payment is simulated. No real charges.'}
+                    {giftCardDiscount > 0 ? `Remaining $${total.toFixed(2)} will be processed securely.` : 'Payment is simulated with 100% security.'}
                   </p>
                 </>
               )}
