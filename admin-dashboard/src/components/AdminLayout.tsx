@@ -11,7 +11,8 @@ import {
   LogOut,
   Menu,
   X,
-  ExternalLink
+  ExternalLink,
+  Network
 } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
@@ -26,6 +27,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
     { label: 'Orders & Fulfillment', href: '/orders', icon: ClipboardList },
     { label: 'Inventory Control', href: '/inventory', icon: Boxes },
     { label: 'Product Catalog', href: '/products', icon: Package },
+    { label: 'Architecture & HLD', href: '/architecture', icon: Network },
     { label: 'System & Customization', href: '/settings', icon: Settings },
   ];
 

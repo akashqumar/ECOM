@@ -8,6 +8,7 @@ import AdminOverviewPage from './pages/AdminOverviewPage';
 import AdminOrdersPage from './pages/AdminOrdersPage';
 import AdminInventoryPage from './pages/AdminInventoryPage';
 import AdminProductsPage from './pages/AdminProductsPage';
+import AdminArchitecturePage from './pages/AdminArchitecturePage';
 import AdminSettingsPage from './pages/AdminSettingsPage';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
@@ -53,6 +54,14 @@ export default function App() {
             element={
               <ProtectedRoute>
                 <AdminProductsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/architecture"
+            element={
+              <ProtectedRoute>
+                <AdminArchitecturePage />
               </ProtectedRoute>
             }
           />
