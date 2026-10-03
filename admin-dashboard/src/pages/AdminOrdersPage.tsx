@@ -28,7 +28,9 @@ import {
   CreditCard,
   Printer,
   FileDown,
+  QrCode,
 } from 'lucide-react';
+import QRCode from 'qrcode';
 import { orderApi } from '../services/api';
 import type { Order, OrderTimeline } from '../types';
 
@@ -514,6 +516,467 @@ export default function AdminOrdersPage() {
     printWindow.document.close();
   };
 
+  // Generate QR-coded Packing & Picking Slips for Ready-to-Pack Orders
+  const [isGeneratingQr, setIsGeneratingQr] = useState(false);
+
+  const handlePrintPackingLabels = async (singleOrder?: Order) => {
+    const targetOrders = singleOrder
+      ? [singleOrder]
+      : orders.filter((o) => o.status === 'CONFIRMED' || o.status === 'PAID');
+
+    if (targetOrders.length === 0) {
+      showToast('No "Ready to Pack" orders available to generate packing labels', 'error');
+      return;
+    }
+
+    setIsGeneratingQr(true);
+    showToast(`Generating QR codes for ${targetOrders.length} order(s)...`, 'success');
+
+    try {
+      // Pre-render QR Codes to Data URLs for both order and every item
+      const ordersWithQrs = await Promise.all(
+        targetOrders.map(async (order) => {
+          // Order-level QR encodes JSON payload or link
+          const orderQrPayload = JSON.stringify({
+            orderNumber: order.orderNumber,
+            orderId: order.id,
+            status: order.status,
+            total: order.totalAmount,
+            userId: order.userId,
+            address: order.shippingAddress,
+          });
+
+          const orderQrDataUrl = await QRCode.toDataURL(orderQrPayload, {
+            errorCorrectionLevel: 'M',
+            width: 140,
+            margin: 1,
+            color: { dark: '#0f172a', light: '#ffffff' },
+          });
+
+          // Items QR encodes product & SKU for warehouse verification scanners
+          const itemsWithQrs = await Promise.all(
+            (order.items || []).map(async (item) => {
+              const itemQrPayload = JSON.stringify({
+                orderNumber: order.orderNumber,
+                sku: item.sku,
+                productId: item.productId,
+                productName: item.productName,
+                qty: item.quantity,
+              });
+
+              const itemQrDataUrl = await QRCode.toDataURL(itemQrPayload, {
+                errorCorrectionLevel: 'M',
+                width: 90,
+                margin: 1,
+                color: { dark: '#0f172a', light: '#ffffff' },
+              });
+
+              return {
+                ...item,
+                qrDataUrl: itemQrDataUrl,
+              };
+            })
+          );
+
+          return {
+            ...order,
+            orderQrDataUrl,
+            itemsWithQrs,
+          };
+        })
+      );
+
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) {
+        showToast('Popup blocker prevented print window from opening. Please allow popups.', 'error');
+        setIsGeneratingQr(false);
+        return;
+      }
+
+      const slipsHtml = ordersWithQrs
+        .map((order, orderIdx) => {
+          const itemBoxesHtml = order.itemsWithQrs
+            .map(
+              (item, iIdx) => `
+              <div class="item-card">
+                <div class="item-qr-wrap">
+                  <img class="qr-img" src="${item.qrDataUrl}" alt="SKU QR" />
+                  <div class="qr-sub">Scan to verify</div>
+                </div>
+                <div class="item-info">
+                  <div class="item-name">${item.productName}</div>
+                  <div class="item-meta">
+                    <span>SKU: <strong>${item.sku}</strong></span>
+                    <span>Product ID: <code>${item.productId.slice(0, 12)}...</code></span>
+                  </div>
+                  <div class="item-qty-row">
+                    <span class="qty-badge">PICK QTY: ${item.quantity}</span>
+                    <span class="item-price">$${item.price.toFixed(2)} ea • Subtotal: $${item.subtotal.toFixed(2)}</span>
+                  </div>
+                </div>
+                <div class="checkbox-box">
+                  <div class="check-square"></div>
+                  <div style="font-size: 8px; color: #64748b; margin-top: 3px; font-weight: 700;">PACKED</div>
+                </div>
+              </div>
+            `
+            )
+            .join('');
+
+          return `
+            <div class="slip-container ${orderIdx < ordersWithQrs.length - 1 ? 'page-break' : ''}">
+              <!-- Slip Header -->
+              <div class="slip-header">
+                <div class="header-left">
+                  <div class="slip-brand">LUMÉ FULFILLMENT SLIP</div>
+                  <div class="order-num-title">ORDER #${order.orderNumber}</div>
+                  <div class="order-sub-meta">
+                    <span>Date: <strong>${new Date(order.createdAt).toLocaleString()}</strong></span>
+                    <span>Status: <strong style="color: #059669;">${order.status}</strong></span>
+                  </div>
+                </div>
+                <div class="header-right">
+                  <div class="order-qr-wrap">
+                    <img class="order-qr-img" src="${order.orderQrDataUrl}" alt="Order QR" />
+                    <div class="qr-caption">Scan Order Barcode</div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Shipping & Logistics Banner -->
+              <div class="dispatch-banner">
+                <div class="banner-col" style="flex: 2;">
+                  <div class="col-title">SHIP TO DESTINATION</div>
+                  <div class="address-text">${order.shippingAddress || 'Standard Warehouse Destination'}</div>
+                  <div class="user-ref">Customer ID: <code>${order.userId}</code></div>
+                </div>
+                <div class="banner-col" style="flex: 1; border-left: 1px dashed #cbd5e1; padding-left: 16px;">
+                  <div class="col-title">ORDER METRICS</div>
+                  <div class="metric-row"><span>Total Units:</span> <strong>${order.itemsWithQrs.reduce((s, it) => s + (it.quantity || 1), 0)}</strong></div>
+                  <div class="metric-row"><span>Total Amount:</span> <strong>$${order.totalAmount.toFixed(2)}</strong></div>
+                  <div class="metric-row"><span>Order UUID:</span> <code>${order.id.slice(0, 8)}...</code></div>
+                </div>
+              </div>
+
+              <!-- Picking & Packing Check List -->
+              <div class="section-heading">
+                <span>ITEMS TO PICK & PACK (${order.itemsWithQrs.length} Line Items)</span>
+                <span style="font-weight: 500; font-size: 10px; color: #64748b;">Scan item QR code with warehouse scanner before sealing pack</span>
+              </div>
+
+              <div class="items-list">
+                ${itemBoxesHtml}
+              </div>
+
+              <!-- Packer Verification Footer -->
+              <div class="packer-footer">
+                <div class="sign-block">
+                  <div class="line"></div>
+                  <div class="sign-label">Picked By (Name / ID)</div>
+                </div>
+                <div class="sign-block">
+                  <div class="line"></div>
+                  <div class="sign-label">Packed & Verified By</div>
+                </div>
+                <div class="sign-block">
+                  <div class="line"></div>
+                  <div class="sign-label">Packing Date & Time</div>
+                </div>
+              </div>
+            </div>
+          `;
+        })
+        .join('');
+
+      const htmlContent = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <title>Lumé Commerce - Packing & Picking Slips with QR Codes</title>
+            <meta charset="utf-8" />
+            <style>
+              @media print {
+                @page {
+                  size: A4;
+                  margin: 10mm 12mm;
+                }
+                body {
+                  -webkit-print-color-adjust: exact;
+                  print-color-adjust: exact;
+                }
+                .no-print {
+                  display: none !important;
+                }
+                .page-break {
+                  page-break-after: always;
+                  break-after: page;
+                }
+              }
+              * {
+                box-sizing: border-box;
+              }
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                color: #0f172a;
+                background: #fff;
+                margin: 0;
+                padding: 16px;
+                line-height: 1.35;
+              }
+              .toolbar {
+                margin-bottom: 20px;
+                padding: 12px 18px;
+                background: #f1f5f9;
+                border-radius: 8px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+              }
+              .btn {
+                background: #0284c7;
+                color: #fff;
+                border: none;
+                padding: 9px 20px;
+                font-size: 13px;
+                font-weight: 700;
+                border-radius: 6px;
+                cursor: pointer;
+              }
+              .slip-container {
+                border: 2px solid #0f172a;
+                border-radius: 8px;
+                padding: 20px;
+                margin-bottom: 24px;
+                background: #fff;
+              }
+              .page-break {
+                page-break-after: always;
+                break-after: page;
+              }
+              .slip-header {
+                display: flex;
+                justify-content: space-between;
+                align-items: flex-start;
+                border-bottom: 2px solid #0f172a;
+                padding-bottom: 14px;
+                margin-bottom: 14px;
+              }
+              .slip-brand {
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.1em;
+                color: #475569;
+              }
+              .order-num-title {
+                font-size: 24px;
+                font-weight: 900;
+                font-family: monospace;
+                letter-spacing: -0.5px;
+                color: #0f172a;
+                margin: 4px 0;
+              }
+              .order-sub-meta {
+                display: flex;
+                gap: 16px;
+                font-size: 11px;
+                color: #64748b;
+              }
+              .order-qr-wrap {
+                text-align: center;
+              }
+              .order-qr-img {
+                width: 100px;
+                height: 100px;
+                display: block;
+                border: 1px solid #cbd5e1;
+                border-radius: 4px;
+              }
+              .qr-caption {
+                font-size: 9px;
+                font-weight: 700;
+                color: #475569;
+                margin-top: 4px;
+                letter-spacing: 0.04em;
+              }
+              .dispatch-banner {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                border-radius: 6px;
+                padding: 12px 14px;
+                display: flex;
+                gap: 16px;
+                margin-bottom: 16px;
+              }
+              .col-title {
+                font-size: 9px;
+                font-weight: 800;
+                letter-spacing: 0.06em;
+                color: #64748b;
+                margin-bottom: 4px;
+              }
+              .address-text {
+                font-size: 13px;
+                font-weight: 600;
+                color: #1e293b;
+              }
+              .user-ref {
+                font-size: 10px;
+                color: #64748b;
+                margin-top: 4px;
+              }
+              .metric-row {
+                display: flex;
+                justify-content: space-between;
+                font-size: 11px;
+                margin-bottom: 2px;
+              }
+              .section-heading {
+                font-size: 11px;
+                font-weight: 800;
+                letter-spacing: 0.05em;
+                color: #0f172a;
+                margin-bottom: 10px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                border-bottom: 1px solid #e2e8f0;
+                padding-bottom: 6px;
+              }
+              .items-list {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                margin-bottom: 20px;
+              }
+              .item-card {
+                border: 1px solid #cbd5e1;
+                border-radius: 6px;
+                padding: 10px 12px;
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                background: #ffffff;
+                page-break-inside: avoid;
+              }
+              .item-qr-wrap {
+                text-align: center;
+                flex-shrink: 0;
+              }
+              .qr-img {
+                width: 72px;
+                height: 72px;
+                display: block;
+                border: 1px solid #e2e8f0;
+                border-radius: 3px;
+              }
+              .qr-sub {
+                font-size: 8px;
+                color: #64748b;
+                font-weight: 600;
+                margin-top: 2px;
+              }
+              .item-info {
+                flex: 1;
+                min-width: 0;
+              }
+              .item-name {
+                font-size: 14px;
+                font-weight: 700;
+                color: #0f172a;
+                margin-bottom: 4px;
+              }
+              .item-meta {
+                font-size: 11px;
+                color: #475569;
+                display: flex;
+                gap: 12px;
+                margin-bottom: 6px;
+              }
+              .item-qty-row {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+              }
+              .qty-badge {
+                display: inline-block;
+                background: #0f172a;
+                color: #fff;
+                font-size: 11px;
+                font-weight: 800;
+                padding: 3px 8px;
+                border-radius: 4px;
+                letter-spacing: 0.05em;
+              }
+              .item-price {
+                font-size: 11px;
+                color: #64748b;
+              }
+              .checkbox-box {
+                text-align: center;
+                flex-shrink: 0;
+                padding-left: 8px;
+              }
+              .check-square {
+                width: 28px;
+                height: 28px;
+                border: 2px solid #0f172a;
+                border-radius: 4px;
+                margin: 0 auto;
+              }
+              .packer-footer {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 20px;
+                margin-top: 24px;
+                padding-top: 16px;
+                border-top: 1px solid #e2e8f0;
+              }
+              .sign-block .line {
+                border-bottom: 1px solid #94a3b8;
+                height: 28px;
+                margin-bottom: 4px;
+              }
+              .sign-label {
+                font-size: 10px;
+                color: #64748b;
+                text-align: center;
+                text-transform: uppercase;
+                font-weight: 600;
+              }
+            </style>
+          </head>
+          <body>
+            <div class="toolbar no-print">
+              <div>
+                <strong>${targetOrders.length} Ready to Pack Packing Slip(s) generated:</strong>
+                Includes individual QR barcodes for warehouse picking scanners.
+              </div>
+              <button class="btn" onclick="window.print()">Print Packing Slips (PDF)</button>
+            </div>
+
+            ${slipsHtml}
+
+            <script>
+              window.addEventListener('DOMContentLoaded', () => {
+                setTimeout(() => {
+                  window.print();
+                }, 500);
+              });
+            </script>
+          </body>
+        </html>
+      `;
+
+      printWindow.document.open();
+      printWindow.document.write(htmlContent);
+      printWindow.document.close();
+    } catch (err: any) {
+      showToast('Failed to generate QR codes: ' + (err?.message || err), 'error');
+    } finally {
+      setIsGeneratingQr(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="animate-fade-in">
       {/* Toast */}
@@ -556,7 +1019,29 @@ export default function AdminOrdersPage() {
             Manage order lifecycle, trigger Kafka fulfillment events, and track multi-stage Saga timelines.
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {/* Print QR Packing Slips for Ready-to-Pack Orders */}
+          <button
+            onClick={() => handlePrintPackingLabels()}
+            disabled={isGeneratingQr || readyCount === 0}
+            className="glass-btn"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              fontSize: 13,
+              fontWeight: 700,
+              color: readyCount > 0 ? 'var(--warning)' : 'var(--c-text-3)',
+              borderColor: readyCount > 0 ? 'rgba(245, 158, 11, 0.4)' : undefined,
+              background: readyCount > 0 ? 'rgba(245, 158, 11, 0.08)' : undefined,
+            }}
+            title="Generate packing slips with individual QR verification codes for all Ready to Pack orders"
+          >
+            <QrCode size={15} color={readyCount > 0 ? 'var(--warning)' : 'currentColor'} />
+            <span>{isGeneratingQr ? 'Generating QRs...' : `Packing Slips QR (${readyCount})`}</span>
+          </button>
+
           <button
             onClick={handlePrintOrders}
             className="glass-btn"
@@ -1014,6 +1499,22 @@ export default function AdminOrdersPage() {
                                   <CheckCircle2 size={14} />
                                   <span>Order Completed</span>
                                 </div>
+                              )}
+
+                              {/* Packing Slip with QR Codes for Picking & Packing */}
+                              {(order.status === 'CONFIRMED' || order.status === 'PAID' || order.status === 'PROCESSING') && (
+                                <button
+                                  onClick={() => {
+                                    setActiveActionMenuId(null);
+                                    handlePrintPackingLabels(order);
+                                  }}
+                                  className="glass-btn"
+                                  style={{ width: '100%', justifyContent: 'flex-start', padding: '8px 12px', fontSize: 12, borderRadius: 'var(--r-sm)' }}
+                                  title="Print picking slip with QR codes for this order and all its items"
+                                >
+                                  <QrCode size={14} color="var(--warning)" />
+                                  <span>Print QR Packing Slip</span>
+                                </button>
                               )}
 
                               {(order.status === 'CONFIRMED' || order.status === 'PROCESSING' || order.status === 'PENDING' || order.status === 'PAID') && (
