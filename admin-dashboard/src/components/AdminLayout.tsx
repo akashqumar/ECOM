@@ -47,8 +47,10 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           boxShadow: 'var(--glass-shadow), var(--glass-highlight)',
           display: 'flex',
           flexDirection: 'column',
-          position: 'sticky',
+          position: 'fixed',
           top: 0,
+          left: 0,
+          bottom: 0,
           height: '100vh',
           maxHeight: '100vh',
           flexShrink: 0,
@@ -242,7 +244,17 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
+      <div
+        className="admin-main-content"
+        style={{
+          flex: 1,
+          display: 'flex',
+          flexDirection: 'column',
+          minWidth: 0,
+          overflowX: 'hidden',
+          marginLeft: 270,
+        }}
+      >
         {/* Top Header Bar */}
         <header
           style={{
@@ -451,6 +463,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         @media (max-width: 900px) {
           .admin-desktop-sidebar { display: none !important; }
           .admin-mobile-menu-btn { display: block !important; }
+          .admin-main-content { margin-left: 0 !important; }
         }
       `}</style>
     </div>
