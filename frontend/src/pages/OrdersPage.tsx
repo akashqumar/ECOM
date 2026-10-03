@@ -157,7 +157,7 @@ export default function OrdersPage() {
 
             return (
               <div key={order.id} style={styles.orderCard}>
-                <div style={styles.cardHeader} onClick={() => toggleExpand(order.id)}>
+                <div className="order-card-header" style={styles.cardHeader} onClick={() => toggleExpand(order.id)}>
                   <div style={styles.headerInfo}>
                     <div style={styles.orderIdRow}>
                       <span style={styles.orderId}>#{order.id.split('-')[0].toUpperCase()}</span>
@@ -265,7 +265,7 @@ export default function OrdersPage() {
                       </div>
                     )}
 
-                    <div style={styles.detailsGrid}>
+                    <div className="orders-details-grid" style={styles.detailsGrid}>
                       <div style={styles.itemsList}>
                         <h4 style={styles.detailsTitle}>Items</h4>
                         {order.items.map(item => (
@@ -313,6 +313,9 @@ export default function OrdersPage() {
       <style dangerouslySetInnerHTML={{__html: `
         .orders-page {
           animation: fadeUp var(--transition);
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
         }
         .hide-scroll::-webkit-scrollbar {
           display: none;
@@ -323,7 +326,14 @@ export default function OrdersPage() {
         }
         @media (max-width: 768px) {
           .orders-details-grid {
-            grid-template-columns: 1fr !important;
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 24px !important;
+          }
+          .order-card-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
           }
         }
       `}} />

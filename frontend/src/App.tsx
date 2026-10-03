@@ -85,9 +85,16 @@ function App() {
       <MobileTabBar />
       
       <style>{`
+        .app-main-layout {
+          overflow-x: clip;
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
+        }
         @media (max-width: 768px) {
-          .main-content {
-            padding-bottom: 80px; /* Space for MobileTabBar */
+          .app-main-layout {
+            padding-top: 56px !important;
+            padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
           }
         }
       `}</style>

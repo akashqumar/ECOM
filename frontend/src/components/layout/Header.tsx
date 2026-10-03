@@ -180,7 +180,7 @@ export default function Header() {
             const isSale = location.pathname === '/sale' || location.search.includes('view=sale') || location.search.includes('sort=discountPrice,asc');
 
             return (
-              <nav className="hide-on-mobile" style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
+              <nav className="hide-on-mobile desktop-nav" style={{ display: 'flex', gap: '28px', alignItems: 'center' }}>
                 <Link to="/products" className={`nav-link ${isShopAll && !isNewArrivals && !isSale ? 'active' : ''}`}>
                   Shop All
                 </Link>
@@ -1181,9 +1181,36 @@ export default function Header() {
           flex-direction: column;
         }
 
+        @media (max-width: 1080px) and (min-width: 769px) {
+          .desktop-nav {
+            gap: 14px !important;
+          }
+          .desktop-nav .nav-link {
+            font-size: 13px !important;
+          }
+          .desktop-nav .nav-badge {
+            display: none !important;
+          }
+          .nav-search-form {
+            width: 160px !important;
+          }
+          .nav-search-form:focus-within {
+            width: 210px !important;
+          }
+        }
+
+        @media (max-width: 860px) and (min-width: 769px) {
+          .nav-search-wrapper {
+            display: none !important;
+          }
+        }
+
         @media (max-width: 768px) {
           header {
             height: 56px !important;
+          }
+          .mobile-search-bar {
+            top: 56px !important;
           }
         }
 

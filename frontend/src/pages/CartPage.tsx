@@ -82,11 +82,11 @@ export default function CartPage() {
         <Link to="/products" style={styles.continueLink}>Continue Shopping</Link>
       </div>
 
-      <div style={styles.layout}>
-        <div style={styles.itemsPanel}>
+      <div className="cart-layout" style={styles.layout}>
+        <div className="cart-items" style={styles.itemsPanel}>
           <div style={styles.itemsList}>
             {(cart?.items ?? []).map((item) => (
-              <div key={item.productId} style={styles.itemRow}>
+              <div key={item.productId} className="cart-item-row" style={styles.itemRow}>
                 <div style={styles.itemImageContainer}>
                   {item.imageUrl ? (
                     <img src={item.imageUrl} alt={item.name} style={styles.itemImage} />
@@ -138,7 +138,7 @@ export default function CartPage() {
           </div>
         </div>
 
-        <div style={styles.summaryPanel}>
+        <div className="cart-summary" style={styles.summaryPanel}>
           <div style={styles.summaryCard}>
             <h2 style={styles.summaryTitle}>Order Summary</h2>
             
@@ -252,17 +252,33 @@ export default function CartPage() {
       <style dangerouslySetInnerHTML={{__html: `
         .cart-page {
           animation: fadeUp var(--transition);
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
         }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .cart-layout {
+            display: flex !important;
             flex-direction: column !important;
+            gap: 28px !important;
           }
           .cart-summary {
             width: 100% !important;
             position: static !important;
-            margin-top: 32px;
+            margin-top: 8px !important;
           }
           .cart-items {
+            width: 100% !important;
+          }
+        }
+        @media (max-width: 540px) {
+          .cart-item-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 14px !important;
+            padding: 16px !important;
+          }
+          .cart-item-row .item-image-container {
             width: 100% !important;
           }
         }

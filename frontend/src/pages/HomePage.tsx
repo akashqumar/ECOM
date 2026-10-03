@@ -155,6 +155,10 @@ export default function HomePage() {
           gap: 64px;
           padding-bottom: 80px;
           position: relative;
+          width: 100%;
+          max-width: 100%;
+          overflow-x: clip;
+          box-sizing: border-box;
         }
 
         /* 3D Glass Hero Section */
@@ -574,6 +578,7 @@ export default function HomePage() {
         @media (max-width: 1100px) {
           .products-showcase-grid {
             grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
           }
           .hero-glass-canvas {
             grid-template-columns: 1fr;
@@ -584,9 +589,31 @@ export default function HomePage() {
           }
         }
 
+        @media (max-width: 768px) {
+          .satellite-badge {
+            display: none !important;
+          }
+        }
+
         @media (max-width: 640px) {
+          .home-container {
+            gap: 40px !important;
+          }
+          .hero-wrap {
+            padding: 12px 14px 0 !important;
+          }
+          .hero-glass-canvas {
+            padding: 28px 16px !important;
+          }
+          .section-wrap {
+            padding: 0 14px !important;
+          }
           .products-showcase-grid {
             grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .bento-card {
+            padding: 24px 18px !important;
           }
         }
 
@@ -1078,10 +1105,10 @@ export default function HomePage() {
           WebkitBackdropFilter: 'var(--glass-blur)',
           border: '1px solid rgba(196, 151, 74, 0.3)',
           boxShadow: 'var(--glass-highlight), var(--shadow-sm)',
-          padding: '48px 36px',
+          padding: 'clamp(24px, 4vw, 48px) clamp(16px, 3vw, 36px)',
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
-          gap: '36px',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '32px',
           alignItems: 'center',
           overflow: 'hidden'
         }}>

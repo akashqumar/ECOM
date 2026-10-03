@@ -1668,6 +1668,31 @@ export default function ProfilePage() {
             grid-template-columns: 1fr;
           }
         }
+        @media (max-width: 640px) {
+          .profile-page-container {
+            padding: 20px 14px 80px !important;
+          }
+          .profile-sidebar-card {
+            padding: 20px 16px !important;
+          }
+          .profile-glass-card {
+            padding: 20px 16px !important;
+          }
+          .order-card-header {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+          }
+          .order-header-right {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+          .pref-row-item {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+        }
       `}</style>
     </div>
   );

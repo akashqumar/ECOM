@@ -781,8 +781,14 @@ export default function GiftCardsPage() {
         }
 
         .preview-container {
-          position: sticky;
-          top: 96px;
+          position: static;
+        }
+
+        @media (min-width: 900px) {
+          .preview-container {
+            position: sticky;
+            top: 96px;
+          }
         }
 
         /* 3D Glass Aero Gift Card */
@@ -1730,6 +1736,34 @@ export default function GiftCardsPage() {
           background: var(--c-accent);
           color: var(--c-accent-fg);
           border: none;
+        }
+
+        @media (max-width: 640px) {
+          .gift-page {
+            padding: 20px 14px 80px !important;
+          }
+          .gift-content-layout {
+            gap: 24px !important;
+          }
+          .form-container {
+            padding: 24px 18px !important;
+          }
+          .aero-gift-card {
+            padding: 20px 16px !important;
+          }
+          .gift-tab-bar {
+            width: 100% !important;
+            justify-content: center !important;
+            border-radius: var(--r-lg) !important;
+          }
+          .gift-tab-btn {
+            padding: 8px 12px !important;
+            font-size: 12px !important;
+          }
+          .denominations-row {
+            display: grid !important;
+            grid-template-columns: repeat(3, 1fr) !important;
+          }
         }
       `}</style>
     </div>

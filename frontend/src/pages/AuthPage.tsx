@@ -369,6 +369,18 @@ export default function AuthPage() {
             padding: 32px 24px;
           }
         }
+        @media (max-width: 480px) {
+          .auth-form-panel {
+            padding: 16px 12px;
+          }
+          .auth-form-wrapper {
+            padding: 24px 16px;
+          }
+          .form-row {
+            flex-direction: column !important;
+            gap: 16px !important;
+          }
+        }
       `}</style>
     </div>
   );

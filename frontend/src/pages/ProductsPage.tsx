@@ -561,11 +561,18 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
         .layout-grid {
           width: 100%;
           display: grid;
-          grid-template-columns: 280px minmax(0, 1fr);
-          gap: 32px;
+          grid-template-columns: 1fr;
+          gap: 20px;
           align-items: start;
-          min-height: 750px;
           box-sizing: border-box;
+        }
+
+        @media (min-width: 900px) {
+          .layout-grid {
+            grid-template-columns: 280px minmax(0, 1fr);
+            gap: 32px;
+            min-height: 750px;
+          }
         }
 
         .sidebar {
@@ -852,12 +859,26 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
         @media (max-width: 1100px) {
           .product-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 16px;
           }
         }
 
-        @media (max-width: 600px) {
+        @media (max-width: 640px) {
           .product-grid {
             grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .top-bar {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 12px !important;
+          }
+          .sort-dropdown {
+            width: 100% !important;
+            justify-content: space-between !important;
+          }
+          .products-page {
+            padding: 16px 14px !important;
           }
         }
 

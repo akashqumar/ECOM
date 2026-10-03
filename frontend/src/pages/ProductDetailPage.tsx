@@ -551,13 +551,27 @@ export default function ProductDetailPage() {
         }
         .related-grid {
           display: grid;
-          grid-template-columns: repeat(2, 1fr);
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 16px;
         }
         @media (min-width: 900px) {
           .related-grid {
-            grid-template-columns: repeat(4, 1fr);
+            grid-template-columns: repeat(4, minmax(0, 1fr));
             gap: 32px;
+          }
+        }
+        @media (max-width: 640px) {
+          .pdp-container {
+            padding: 16px 14px !important;
+          }
+          .pdp-layout {
+            gap: 24px !important;
+          }
+          .info-col {
+            padding: 22px 18px !important;
+          }
+          .related-grid {
+            grid-template-columns: 1fr;
           }
         }
         

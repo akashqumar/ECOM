@@ -489,6 +489,24 @@ export default function WishlistPage() {
         .item-move-btn:hover {
           opacity: 0.9;
         }
+
+        @media (max-width: 640px) {
+          .wishlist-page {
+            padding: 20px 14px 80px !important;
+          }
+          .wishlist-grid {
+            grid-template-columns: 1fr;
+            gap: 16px;
+          }
+          .wishlist-hero-actions {
+            flex-direction: column;
+            width: 100%;
+          }
+          .move-all-btn, .clear-all-btn {
+            width: 100%;
+            justify-content: center;
+          }
+        }
       `}</style>
     </div>
   );

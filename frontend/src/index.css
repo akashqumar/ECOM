@@ -107,6 +107,9 @@ html {
   scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
 }
 
 body {
@@ -115,8 +118,19 @@ body {
   color: var(--c-text-1);
   line-height: 1.5;
   overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   position: relative;
+}
+
+#root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Ambient Aero Background Orbs */
@@ -124,8 +138,8 @@ body {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100vw;
-  height: 100vh;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
   z-index: -1;
   overflow: hidden;
@@ -443,10 +457,37 @@ input, textarea, select {
   .show-on-mobile {
     display: flex !important;
   }
+  .app-main-layout {
+    padding-bottom: calc(76px + env(safe-area-inset-bottom)) !important;
+  }
 }
 
 @media (min-width: 769px) {
   .show-on-mobile {
     display: none !important;
   }
+}
+
+/* Global Responsive Guards */
+img, video, canvas, svg {
+  max-width: 100%;
+  height: auto;
+}
+
+input, textarea, select, button {
+  max-width: 100%;
+}
+
+.responsive-container {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  padding-left: clamp(16px, 3vw, 24px);
+  padding-right: clamp(16px, 3vw, 24px);
+  box-sizing: border-box;
+}
+
+/* Prevent flex child blowouts */
+.min-w-0 {
+  min-width: 0 !important;
 }

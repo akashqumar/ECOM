@@ -132,10 +132,10 @@ export default function CheckoutPage() {
 
   return (
     <div className="checkout-page" style={styles.container}>
-      <div style={styles.layout}>
+      <div className="checkout-layout" style={styles.layout}>
         
         {/* Left Form Panel */}
-        <div style={styles.formPanel}>
+        <div className="checkout-form" style={styles.formPanel}>
           <h1 style={styles.pageTitle}>Checkout</h1>
           
           {error && (
@@ -356,7 +356,7 @@ export default function CheckoutPage() {
         </div>
 
         {/* Right Summary Panel */}
-        <div style={styles.summaryPanel}>
+        <div className="checkout-summary" style={styles.summaryPanel}>
           <div style={styles.summaryCard}>
             <h2 style={styles.summaryTitle}>Order Summary</h2>
             
@@ -421,18 +421,24 @@ export default function CheckoutPage() {
       <style dangerouslySetInnerHTML={{__html: `
         .checkout-page {
           animation: fadeUp var(--transition);
+          width: 100%;
+          max-width: 100%;
+          box-sizing: border-box;
         }
-        @media (max-width: 768px) {
+        @media (max-width: 900px) {
           .checkout-layout {
+            display: flex !important;
             flex-direction: column-reverse !important;
+            gap: 32px !important;
           }
           .checkout-form, .checkout-summary {
             width: 100% !important;
+            max-width: 100% !important;
             flex: none !important;
           }
           .checkout-summary {
             position: static !important;
-            margin-bottom: 32px;
+            margin-bottom: 0 !important;
           }
         }
       `}} />
