@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { categoriesData, productsData } from './data/dataset';
+import categoriesData from './data/categories.json';
+import productsData from './data/products.json';
 
 interface User {
   id: string;
