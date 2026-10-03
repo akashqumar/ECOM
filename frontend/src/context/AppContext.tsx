@@ -435,7 +435,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
       <div 
         style={{
           position: 'fixed',
-          bottom: 'calc(80px + env(safe-area-inset-bottom))',
+          top: 'calc(var(--header-height, 64px) + 16px)',
           right: 24,
           zIndex: 9999,
           display: 'flex',
@@ -469,7 +469,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
               alignItems: 'center',
               justifyContent: 'space-between',
               gap: 12,
-              animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+              animation: 'slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
