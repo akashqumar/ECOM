@@ -4,6 +4,7 @@ import Header from './components/layout/Header';
 import Footer from './components/layout/Footer';
 import MobileTabBar from './components/layout/MobileTabBar';
 import ScrollToTop from './components/common/ScrollToTop';
+import GlassCartDrawer from './components/cart/GlassCartDrawer';
 
 // Lazy loading pages
 const HomePage = React.lazy(() => import('./pages/HomePage').catch(() => ({ default: () => <div>Page Not Found</div> })));
@@ -46,6 +47,7 @@ function App() {
       </div>
       <ScrollToTop />
       <Header />
+      <GlassCartDrawer />
       <main style={{ 
         paddingTop: 'var(--header-height, 64px)',
         minHeight: '100vh',

@@ -17,10 +17,12 @@ import {
   Star,
   Check,
   Zap,
-  Gift
+  Gift,
+  Eye
 } from 'lucide-react';
+import QuickViewModal from '../components/product/QuickViewModal';
 
-const AeroProductCard = ({ product }: { product: Product }) => {
+const AeroProductCard = ({ product, onQuickView }: { product: Product; onQuickView?: (product: Product) => void }) => {
   const { addItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
   const { showToast } = useToast();
@@ -62,6 +64,24 @@ const AeroProductCard = ({ product }: { product: Product }) => {
             −{discountPct}%
           </div>
         )}
+        
+        {/* Quick View Button */}
+        {onQuickView && (
+          <button
+            type="button"
+            className={`card-quickview ${isHovered ? 'visible' : ''}`}
+            aria-label="Quick preview"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onQuickView(product);
+            }}
+          >
+            <Eye size={15} />
+            <span>Quick View</span>
+          </button>
+        )}
+
         <button 
           className={`card-wishlist ${isHovered || isSaved ? 'visible' : ''} ${isSaved ? 'active' : ''}`}
           aria-label={isSaved ? "Remove from wishlist" : "Add to wishlist"}
@@ -125,6 +145,7 @@ export default function HomePage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [heroProduct, setHeroProduct] = useState<Product | null>(null);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -703,6 +724,44 @@ export default function HomePage() {
           box-shadow: 0 4px 10px rgba(220, 38, 38, 0.35);
         }
 
+        .card-quickview {
+          position: absolute;
+          bottom: 12px;
+          left: 50%;
+          transform: translateX(-50%) translateY(8px);
+          background: rgba(15, 23, 42, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.2);
+          color: #FFFFFF;
+          padding: 6px 14px;
+          border-radius: var(--r-full);
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          opacity: 0;
+          pointer-events: none;
+          transition: all var(--transition);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+          cursor: pointer;
+          white-space: nowrap;
+          z-index: 5;
+        }
+
+        .card-quickview.visible {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+          pointer-events: auto;
+        }
+
+        .card-quickview:hover {
+          background: rgba(15, 23, 42, 0.98);
+          border-color: var(--c-accent-2);
+          transform: translateX(-50%) translateY(-2px);
+        }
+
         .card-wishlist {
           position: absolute;
           top: 10px;
@@ -1054,7 +1113,11 @@ export default function HomePage() {
         ) : (
           <div className="products-showcase-grid">
             {featuredProducts.map(p => (
-              <AeroProductCard key={p.id} product={p} />
+              <AeroProductCard 
+                key={p.id} 
+                product={p} 
+                onQuickView={setQuickViewProduct}
+              />
             ))}
           </div>
         )}
@@ -1252,6 +1315,12 @@ export default function HomePage() {
           </div>
         </div>
       </section>
+
+      {/* Quick View Modal */}
+      <QuickViewModal 
+        product={quickViewProduct} 
+        onClose={() => setQuickViewProduct(null)} 
+      />
     </div>
   );
 }

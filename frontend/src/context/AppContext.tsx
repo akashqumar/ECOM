@@ -22,6 +22,8 @@ interface CartContextType {
   clearCart: () => Promise<void>;
   refreshCart: () => Promise<void>;
   isUpdating: boolean;
+  isCartOpen: boolean;
+  setIsCartOpen: (open: boolean) => void;
 }
 
 interface WishlistContextType {
@@ -175,6 +177,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   });
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isCartOpen, setIsCartOpen] = useState(false);
 
   const saveCartLocal = (newCart: Cart | null) => {
     setCart(newCart);
@@ -358,7 +361,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const subtotal = cart?.subtotalAmount || 0;
 
   return (
-    <CartContext.Provider value={{ cart, itemCount, subtotal, addItem, updateQty, removeItem, clearCart, refreshCart, isUpdating }}>
+    <CartContext.Provider value={{ cart, itemCount, subtotal, addItem, updateQty, removeItem, clearCart, refreshCart, isUpdating, isCartOpen, setIsCartOpen }}>
       {children}
     </CartContext.Provider>
   );

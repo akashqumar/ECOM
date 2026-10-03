@@ -1,14 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, useToast } from '../context/AppContext';
+import { useAuth, useCart, useToast } from '../context/AppContext';
 import { orderApi } from '../services/api';
 import { Order } from '../types';
-import { ShoppingBag, ChevronDown, ChevronUp, Package, Truck, CheckCircle2, Check, Clock, XCircle } from 'lucide-react';
+import { ShoppingBag, ChevronDown, ChevronUp, Package, Truck, CheckCircle2, Check, Clock, XCircle, FileText, RotateCcw, MessageSquare } from 'lucide-react';
 
 type Tab = 'ALL' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 
 export default function OrdersPage() {
   const { user } = useAuth();
+  const { addItem, setIsCartOpen } = useCart();
   const { showToast } = useToast();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -288,20 +289,147 @@ export default function OrdersPage() {
                         <h4 style={styles.detailsTitle}>Shipping Details</h4>
                         <p style={styles.addressText}>{order.shippingAddress || 'Address not provided'}</p>
                         
-                        {(label === 'Processing' || label === 'Preparing') && (
-                          <button 
-                            style={{
-                              ...styles.cancelBtn,
-                              opacity: cancellingId === order.id ? 0.6 : 1,
-                              cursor: cancellingId === order.id ? 'not-allowed' : 'pointer',
+                        {/* Order Management Actions Strip */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                          {/* Download Invoice Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              showToast(`Invoice downloaded for #${order.id.slice(0, 8).toUpperCase()}`, 'info', 'Invoice PDF');
+                              const invoiceWindow = window.open('', '_blank');
+                              if (invoiceWindow) {
+                                invoiceWindow.document.write(`
+                                  <html>
+                                    <head><title>Invoice #${order.id.slice(0, 8).toUpperCase()}</title></head>
+                                    <body style="font-family: sans-serif; padding: 40px; color: #1a1915;">
+                                      <h1>LUMÉ LUXURY GOODS</h1>
+                                      <p>Tax Invoice: #${order.id.slice(0, 8).toUpperCase()}</p>
+                                      <p>Date: ${new Date(order.createdAt).toLocaleDateString()}</p>
+                                      <p>Customer: ${user?.firstName} ${user?.lastName} (${user?.email})</p>
+                                      <p>Shipping Address: ${order.shippingAddress}</p>
+                                      <hr />
+                                      <h3>Items</h3>
+                                      <ul>
+                                        ${order.items.map(it => `<li>${it.productName} × ${it.quantity} - $${(it.price * it.quantity).toFixed(2)}</li>`).join('')}
+                                      </ul>
+                                      <hr />
+                                      <h3>Total Paid: $${order.items.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}</h3>
+                                      <script>window.print();</script>
+                                    </body>
+                                  </html>
+                                `);
+                              }
                             }}
-                            disabled={cancellingId === order.id}
-                            onClick={() => handleCancelOrder(order.id)}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 'var(--r-md)',
+                              background: 'var(--c-bg-alt)',
+                              border: '1px solid var(--c-border)',
+                              color: 'var(--c-text-1)',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}
                           >
-                            <XCircle size={15} />
-                            <span>{cancellingId === order.id ? 'Cancelling...' : 'Cancel Order'}</span>
+                            <FileText size={14} color="var(--c-accent-2)" />
+                            <span>Download Tax Invoice</span>
                           </button>
-                        )}
+
+                          {/* Reorder Button */}
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              for (const item of order.items) {
+                                await addItem({
+                                  id: item.productId,
+                                  name: item.productName,
+                                  price: item.price,
+                                  sku: item.sku,
+                                }, item.quantity);
+                              }
+                              showToast(`Added ${order.items.length} items to bag from this order.`, 'success', 'Reorder Placed');
+                              setIsCartOpen(true);
+                            }}
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 'var(--r-md)',
+                              background: 'var(--c-bg-alt)',
+                              border: '1px solid var(--c-border)',
+                              color: 'var(--c-text-1)',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}
+                          >
+                            <RotateCcw size={14} color="var(--c-accent-2)" />
+                            <span>Reorder All Items</span>
+                          </button>
+
+                          {/* Return Request Button (if delivered) */}
+                          {label === 'Delivered' && (
+                            <Link
+                              to="/shipping-returns"
+                              style={{
+                                padding: '8px 14px',
+                                borderRadius: 'var(--r-md)',
+                                background: 'var(--c-bg-alt)',
+                                border: '1px solid var(--c-border)',
+                                color: 'var(--c-text-1)',
+                                fontSize: 12,
+                                fontWeight: 600,
+                                textDecoration: 'none',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 8,
+                              }}
+                            >
+                              <RotateCcw size={14} color="var(--c-accent-2)" />
+                              <span>Request Return / Refund</span>
+                            </Link>
+                          )}
+
+                          {/* Contact Support */}
+                          <Link
+                            to="/contact"
+                            style={{
+                              padding: '8px 14px',
+                              borderRadius: 'var(--r-md)',
+                              background: 'var(--c-bg-alt)',
+                              border: '1px solid var(--c-border)',
+                              color: 'var(--c-text-1)',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                            }}
+                          >
+                            <MessageSquare size={14} color="var(--c-accent-2)" />
+                            <span>Contact Concierge Support</span>
+                          </Link>
+
+                          {(label === 'Processing' || label === 'Preparing') && (
+                            <button 
+                              style={{
+                                ...styles.cancelBtn,
+                                opacity: cancellingId === order.id ? 0.6 : 1,
+                                cursor: cancellingId === order.id ? 'not-allowed' : 'pointer',
+                              }}
+                              disabled={cancellingId === order.id}
+                              onClick={() => handleCancelOrder(order.id)}
+                            >
+                              <XCircle size={15} />
+                              <span>{cancellingId === order.id ? 'Cancelling...' : 'Cancel Order'}</span>
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

@@ -18,8 +18,10 @@ import {
   Flame,
   Tag,
   Copy,
-  Check
+  Check,
+  Eye
 } from 'lucide-react';
+import QuickViewModal from '../components/product/QuickViewModal';
 
 interface ProductsPageProps {
   mode?: 'all' | 'new' | 'sale';
@@ -53,6 +55,7 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
   const [totalProducts, setTotalProducts] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+  const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
   const [cartLoadingId, setCartLoadingId] = useState<string | null>(null);
   const [cartSuccessId, setCartSuccessId] = useState<string | null>(null);
 
@@ -1067,6 +1070,44 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
           letter-spacing: 0.02em;
         }
 
+        .quickview-hover-btn {
+          position: absolute;
+          bottom: 12px;
+          left: 50%;
+          transform: translateX(-50%) translateY(8px);
+          background: rgba(15, 23, 42, 0.85);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          color: #FFFFFF;
+          padding: 6px 14px;
+          border-radius: var(--r-full);
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          opacity: 0;
+          pointer-events: none;
+          transition: all var(--transition);
+          box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+          cursor: pointer;
+          white-space: nowrap;
+          z-index: 5;
+        }
+
+        .product-card:hover .quickview-hover-btn {
+          opacity: 1;
+          transform: translateX(-50%) translateY(0);
+          pointer-events: auto;
+        }
+
+        .quickview-hover-btn:hover {
+          background: rgba(15, 23, 42, 0.98);
+          border-color: var(--c-accent-2);
+          transform: translateX(-50%) translateY(-2px);
+        }
+
         .wishlist-btn {
           position: absolute;
           top: 12px;
@@ -1655,6 +1696,20 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
                         ) : hasDiscount ? (
                           <div className="discount-badge">−{discountPct}% OFF</div>
                         ) : null}
+                        <button
+                          type="button"
+                          className="quickview-hover-btn"
+                          aria-label="Quick preview"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setQuickViewProduct(product);
+                          }}
+                        >
+                          <Eye size={15} />
+                          <span>Quick View</span>
+                        </button>
+
                         <button 
                           className={`wishlist-btn ${isWishlisted(product.id) ? 'active' : ''}`} 
                           aria-label={isWishlisted(product.id) ? "Remove from wishlist" : "Add to wishlist"}
@@ -1813,6 +1868,12 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
           Show {totalProducts} Results
         </button>
       </div>
+
+      {/* Quick View Modal */}
+      <QuickViewModal 
+        product={quickViewProduct} 
+        onClose={() => setQuickViewProduct(null)} 
+      />
     </div>
   );
 }

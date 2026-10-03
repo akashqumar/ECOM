@@ -19,7 +19,7 @@ export default function Header() {
   const [isSearching, setIsSearching] = useState(false);
 
   const { user, logout } = useAuth();
-  const { itemCount, addItem } = useCart();
+  const { itemCount, addItem, setIsCartOpen } = useCart();
   const { wishlist, removeFromWishlist } = useWishlist();
   const { theme, toggleTheme } = useTheme();
   
@@ -401,7 +401,22 @@ export default function Header() {
               )}
             </button>
 
-            <Link to="/cart" style={{ position: 'relative', color: 'var(--c-text-1)', padding: '4px' }}>
+            <button 
+              type="button"
+              onClick={() => setIsCartOpen(true)} 
+              style={{ 
+                position: 'relative', 
+                color: 'var(--c-text-1)', 
+                padding: '4px',
+                background: 'none',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              aria-label="Open Shopping Bag"
+            >
               <ShoppingBag size={20} strokeWidth={1.5} />
               {itemCount > 0 && (
                 <span style={{
@@ -423,7 +438,7 @@ export default function Header() {
                   {itemCount}
                 </span>
               )}
-            </Link>
+            </button>
           </div>
         </div>
       </header>
