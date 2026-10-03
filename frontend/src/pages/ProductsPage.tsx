@@ -73,10 +73,31 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
   const currentMaxPrice = searchParams.get('maxPrice') || '2000';
 
   const [activeCategoryState, setActiveCategoryState] = useState(currentCategory);
+  const [isSortOpen, setIsSortOpen] = useState(false);
+  const sortRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setActiveCategoryState(currentCategory);
   }, [currentCategory]);
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sortRef.current && !sortRef.current.contains(e.target as Node)) {
+        setIsSortOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const SORT_OPTIONS = [
+    { value: '', label: 'Featured' },
+    { value: 'createdAt,desc', label: 'Newest Releases' },
+    { value: 'price,asc', label: 'Price: Low to High' },
+    { value: 'price,desc', label: 'Price: High to Low' },
+  ];
+
+  const currentSortLabel = SORT_OPTIONS.find(o => o.value === currentSort)?.label || 'Featured';
 
   useEffect(() => {
     const fetchInitialData = async () => {
@@ -811,34 +832,105 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
 
         .sort-select-wrapper {
           position: relative;
-          display: flex;
+          display: inline-flex;
           align-items: center;
         }
 
-        .sort-select {
-          appearance: none;
-          background: rgba(255, 255, 255, 0.5);
+        .sort-trigger-btn {
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          background: rgba(255, 255, 255, 0.65);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
           border: 1px solid var(--glass-border);
           border-radius: var(--r-full);
-          padding: 6px 32px 6px 14px;
+          padding: 7px 16px;
           font-size: 13px;
           font-weight: 600;
           color: var(--c-text-1);
           cursor: pointer;
           outline: none;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), var(--shadow-xs);
+          transition: all var(--transition);
         }
 
-        [data-theme='dark'] .sort-select {
+        [data-theme='dark'] .sort-trigger-btn {
           background: rgba(255, 255, 255, 0.08);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,0.15);
+          box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
+        }
+
+        .sort-trigger-btn:hover {
+          background: var(--glass-bg-hover);
+          border-color: var(--c-accent-2);
+          box-shadow: var(--shadow-sm);
         }
 
         .sort-select-icon {
-          position: absolute;
-          right: 10px;
-          pointer-events: none;
           color: var(--c-text-3);
+          flex-shrink: 0;
+        }
+
+        .sort-popover-menu {
+          position: absolute;
+          top: calc(100% + 8px);
+          right: 0;
+          min-width: 190px;
+          background: #FFFFFF;
+          border: 1px solid var(--c-border);
+          box-shadow: 0 16px 36px -4px rgba(15, 23, 42, 0.16), 0 4px 12px rgba(15, 23, 42, 0.08);
+          border-radius: var(--r-lg);
+          padding: 6px;
+          z-index: 100;
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          animation: slideDown 0.15s ease-out;
+          box-sizing: border-box;
+        }
+
+        [data-theme='dark'] .sort-popover-menu {
+          background: #111827;
+          border-color: rgba(255, 255, 255, 0.14);
+          box-shadow: 0 20px 48px rgba(0, 0, 0, 0.7);
+        }
+
+        .sort-popover-item {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 8px 12px;
+          border-radius: var(--r-sm);
+          border: none;
+          background: transparent;
+          color: var(--c-text-2);
+          font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.15s ease;
+          width: 100%;
+          text-align: left;
+          box-sizing: border-box;
+        }
+
+        .sort-popover-item:hover {
+          background: #F1F5F9;
+          color: var(--c-text-1);
+        }
+
+        [data-theme='dark'] .sort-popover-item:hover {
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .sort-popover-item.active {
+          background: var(--c-accent);
+          color: var(--c-accent-fg);
+          font-weight: 600;
+        }
+
+        .sort-check-icon {
+          color: var(--c-accent-fg);
+          flex-shrink: 0;
         }
 
         /* Seamless Grid Transition: Smooth fade, zero skeleton flickering */
@@ -1483,18 +1575,45 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
             </div>
             <div className="sort-dropdown">
               <span>Sort by:</span>
-              <div className="sort-select-wrapper">
-                <select 
-                  className="sort-select"
-                  value={currentSort}
-                  onChange={(e) => updateFilter('sort', e.target.value)}
+              <div className="sort-select-wrapper" ref={sortRef}>
+                <button
+                  type="button"
+                  className="sort-trigger-btn"
+                  onClick={() => setIsSortOpen(!isSortOpen)}
+                  aria-expanded={isSortOpen}
+                  aria-haspopup="listbox"
                 >
-                  <option value="">Featured</option>
-                  <option value="createdAt,desc">Newest Releases</option>
-                  <option value="price,asc">Price: Low to High</option>
-                  <option value="price,desc">Price: High to Low</option>
-                </select>
-                <ChevronDown size={14} className="sort-select-icon" />
+                  <span>{currentSortLabel}</span>
+                  <ChevronDown 
+                    size={14} 
+                    className="sort-select-icon"
+                    style={{
+                      transform: isSortOpen ? 'rotate(180deg)' : 'none',
+                      transition: 'transform 0.2s cubic-bezier(0.16, 1, 0.3, 1)'
+                    }}
+                  />
+                </button>
+
+                {isSortOpen && (
+                  <div className="sort-popover-menu" role="listbox">
+                    {SORT_OPTIONS.map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        role="option"
+                        aria-selected={currentSort === opt.value}
+                        className={`sort-popover-item ${currentSort === opt.value ? 'active' : ''}`}
+                        onClick={() => {
+                          updateFilter('sort', opt.value || null);
+                          setIsSortOpen(false);
+                        }}
+                      >
+                        <span>{opt.label}</span>
+                        {currentSort === opt.value && <Check size={14} className="sort-check-icon" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           </div>
