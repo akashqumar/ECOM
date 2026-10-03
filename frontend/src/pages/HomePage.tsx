@@ -16,7 +16,8 @@ import {
   Sliders, 
   Star,
   Check,
-  Zap
+  Zap,
+  Gift
 } from 'lucide-react';
 
 const AeroProductCard = ({ product }: { product: Product }) => {
@@ -1063,6 +1064,157 @@ export default function HomePage() {
             <p className="bento-desc">
               Direct-from-manufacturer sourcing guarantees valid international serials, zero grey-market units, and full manufacturer warranty coverage.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Lumé Digital Gift Card Banner Section */}
+      <section className="section-wrap" style={{ marginTop: '24px' }}>
+        <div style={{
+          position: 'relative',
+          borderRadius: 'var(--r-xl)',
+          background: 'linear-gradient(135deg, rgba(230, 200, 140, 0.22) 0%, rgba(196, 151, 74, 0.08) 100%)',
+          backdropFilter: 'var(--glass-blur)',
+          WebkitBackdropFilter: 'var(--glass-blur)',
+          border: '1px solid rgba(196, 151, 74, 0.3)',
+          boxShadow: 'var(--glass-highlight), var(--shadow-sm)',
+          padding: '48px 36px',
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+          gap: '36px',
+          alignItems: 'center',
+          overflow: 'hidden'
+        }}>
+          <div>
+            <div style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '11px',
+              fontWeight: 700,
+              letterSpacing: '0.12em',
+              textTransform: 'uppercase',
+              color: 'var(--c-accent-2)',
+              background: 'rgba(196, 151, 74, 0.15)',
+              padding: '6px 14px',
+              borderRadius: 'var(--r-full)',
+              marginBottom: '16px'
+            }}>
+              <Gift size={14} />
+              <span>THE ART OF GIVING</span>
+            </div>
+
+            <h2 style={{
+              fontSize: 'clamp(28px, 4vw, 38px)',
+              fontWeight: 800,
+              color: 'var(--c-text-1)',
+              letterSpacing: '-0.02em',
+              margin: '0 0 14px'
+            }}>
+              Lumé Digital Gift Card
+            </h2>
+
+            <p style={{
+              fontSize: '15px',
+              color: 'var(--c-text-2)',
+              lineHeight: 1.6,
+              margin: '0 0 24px',
+              maxWidth: '480px'
+            }}>
+              The quintessential gesture of refined style. Sent straight to their inbox with customized greetings, redeemable immediately across all collections with zero expiration.
+            </p>
+
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+              <Link to="/gift-cards" style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '14px 28px',
+                borderRadius: 'var(--r-full)',
+                background: 'var(--c-accent)',
+                color: 'var(--c-accent-fg)',
+                fontWeight: 600,
+                fontSize: '14px',
+                textDecoration: 'none',
+                boxShadow: '0 4px 14px rgba(0, 0, 0, 0.15)'
+              }}>
+                <span>Send a Digital Gift</span>
+                <ArrowRight size={16} />
+              </Link>
+
+              <Link to="/gift-cards" style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '14px 24px',
+                borderRadius: 'var(--r-full)',
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                color: 'var(--c-text-1)',
+                fontWeight: 600,
+                fontSize: '14px',
+                textDecoration: 'none'
+              }}>
+                <span>Check Balance</span>
+              </Link>
+            </div>
+          </div>
+
+          {/* Interactive Aero Gift Card Visual Preview */}
+          <div style={{ display: 'flex', justifyContent: 'center' }}>
+            <div style={{
+              width: '100%',
+              maxWidth: '380px',
+              aspectRatio: '1.6 / 1',
+              borderRadius: 'var(--r-xl)',
+              background: 'linear-gradient(135deg, rgba(230, 200, 140, 0.9) 0%, rgba(196, 151, 74, 0.8) 100%)',
+              color: '#1A1915',
+              padding: '24px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              boxShadow: '0 20px 48px rgba(0, 0, 0, 0.25), inset 0 1px 2px rgba(255, 255, 255, 0.8)',
+              position: 'relative',
+              overflow: 'hidden'
+            }}>
+              <div style={{
+                position: 'absolute',
+                top: 0,
+                left: '-80%',
+                width: '200%',
+                height: '100%',
+                background: 'linear-gradient(115deg, transparent 20%, rgba(255, 255, 255, 0.45) 45%, transparent 60%)',
+                pointerEvents: 'none'
+              }} />
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 800, letterSpacing: '0.12em', fontSize: '14px' }}>
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#1A1915' }} />
+                  <span>LUMÉ</span>
+                </div>
+                <Gift size={20} />
+              </div>
+
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '38px', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1 }}>
+                  $100
+                </div>
+                <div style={{ fontSize: '10px', letterSpacing: '0.14em', fontWeight: 700, opacity: 0.8, marginTop: '4px' }}>
+                  DIGITAL GIFT CERTIFICATE
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '11px', fontWeight: 600 }}>
+                <div>
+                  <div style={{ fontSize: '9px', opacity: 0.7, letterSpacing: '0.08em' }}>FOR</div>
+                  <span>Someone Special</span>
+                </div>
+                <div>
+                  <div style={{ fontSize: '9px', opacity: 0.7, letterSpacing: '0.08em' }}>CODE</div>
+                  <span style={{ fontFamily: 'monospace' }}>LUME-2026-GOLD</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

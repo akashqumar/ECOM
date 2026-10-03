@@ -192,6 +192,10 @@ export default function Header() {
                   Sale
                   <span className="nav-badge nav-badge-sale">HOT</span>
                 </Link>
+                <Link to="/gift-cards" className={`nav-link ${location.pathname === '/gift-cards' ? 'active' : ''}`}>
+                  Gift Cards
+                  <span className="nav-badge" style={{ background: 'rgba(196,151,74,0.15)', color: 'var(--c-accent-2)' }}>GIFT</span>
+                </Link>
               </nav>
             );
           })()}
@@ -564,6 +568,20 @@ export default function Header() {
                   >
                     Sale
                     <span className="nav-badge nav-badge-sale">HOT</span>
+                  </Link>
+                  <Link 
+                    to="/gift-cards" 
+                    onClick={() => setMobileNavOpen(false)}
+                    style={{ 
+                      fontWeight: location.pathname === '/gift-cards' ? 700 : 500,
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      color: 'var(--c-accent-2)'
+                    }}
+                  >
+                    Digital Gift Cards
+                    <span className="nav-badge" style={{ background: 'rgba(196,151,74,0.15)', color: 'var(--c-accent-2)' }}>GIFT</span>
                   </Link>
                 </div>
               );

@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth, useCart } from '../context/AppContext';
 import { orderApi } from '../services/api';
-import { CheckCircle2, AlertCircle } from 'lucide-react';
+import { giftCardService, GiftCard } from '../services/giftCardService';
+import { CheckCircle2, AlertCircle, Gift, Sparkles, Check, X } from 'lucide-react';
 
 export default function CheckoutPage() {
   const { user } = useAuth();
@@ -15,6 +16,13 @@ export default function CheckoutPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [placedOrderId, setPlacedOrderId] = useState('');
+
+  // Lumé Digital Gift Card state
+  const [giftCardInput, setGiftCardInput] = useState('');
+  const [giftCardPin, setGiftCardPin] = useState('');
+  const [appliedGiftCard, setAppliedGiftCard] = useState<GiftCard | null>(null);
+  const [giftCardError, setGiftCardError] = useState('');
+  const [applyingGiftCard, setApplyingGiftCard] = useState(false);
 
   if (!user) {
     return (
@@ -35,7 +43,39 @@ export default function CheckoutPage() {
   }
 
   const tax = subtotal * 0.08;
-  const total = subtotal + tax;
+  const grossTotal = subtotal + tax;
+  const giftCardDiscount = appliedGiftCard 
+    ? Math.min(appliedGiftCard.currentBalance, grossTotal)
+    : 0;
+  const total = Math.max(0, grossTotal - giftCardDiscount);
+
+  const handleApplyGiftCard = (codeOverride?: string) => {
+    const code = (codeOverride || giftCardInput).trim();
+    if (!code) return;
+    setGiftCardError('');
+    setApplyingGiftCard(true);
+
+    setTimeout(() => {
+      const res = giftCardService.getCardByCode(code, giftCardPin);
+      if (res.card) {
+        if (res.card.currentBalance <= 0) {
+          setGiftCardError('This gift card has a $0.00 balance.');
+        } else {
+          setAppliedGiftCard(res.card);
+          setGiftCardInput('');
+          setGiftCardPin('');
+        }
+      } else {
+        setGiftCardError(res.error || 'Gift card not found.');
+      }
+      setApplyingGiftCard(false);
+    }, 250);
+  };
+
+  const handleRemoveGiftCard = () => {
+    setAppliedGiftCard(null);
+    setGiftCardError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +97,11 @@ export default function CheckoutPage() {
         shippingAddress: address,
         items
       });
+
+      // If a gift card was applied, deduct the amount from its balance
+      if (appliedGiftCard && giftCardDiscount > 0) {
+        giftCardService.redeemCard(appliedGiftCard.code, giftCardDiscount);
+      }
 
       setPlacedOrderId(response.data?.id || response.data?.orderNumber || 'ORD-' + Date.now());
       setSuccess(true);
@@ -129,23 +174,183 @@ export default function CheckoutPage() {
               </div>
             </section>
 
+            {/* Lumé Digital Gift Card Section */}
+            <section style={styles.section}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                <h2 style={styles.sectionTitle}>Lumé Digital Gift Card</h2>
+                <Link to="/gift-cards" style={{ fontSize: '13px', color: 'var(--c-accent-2)', textDecoration: 'none', fontWeight: 600 }}>
+                  Buy Gift Card &rarr;
+                </Link>
+              </div>
+
+              {appliedGiftCard ? (
+                <div style={{
+                  padding: '16px 20px',
+                  borderRadius: 'var(--r-md)',
+                  background: 'rgba(16, 185, 129, 0.08)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '50%',
+                      background: '#10B981',
+                      color: '#FFF',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center'
+                    }}>
+                      <Check size={18} />
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--c-text-1)', fontFamily: 'monospace' }}>
+                        {appliedGiftCard.code}
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--c-text-2)', marginTop: '2px' }}>
+                        Card Balance: ${appliedGiftCard.currentBalance.toFixed(2)} &bull; Applied: -${giftCardDiscount.toFixed(2)}
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleRemoveGiftCard}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      color: 'var(--c-text-3)',
+                      cursor: 'pointer',
+                      padding: '6px',
+                      borderRadius: '4px'
+                    }}
+                    title="Remove Gift Card"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+              ) : (
+                <div style={{
+                  padding: '20px',
+                  borderRadius: 'var(--r-md)',
+                  background: 'var(--c-surface-raised)',
+                  border: '1px solid var(--c-border)'
+                }}>
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                    <input
+                      type="text"
+                      placeholder="Enter Gift Card Code (e.g. LUME-2026-GOLD-100)"
+                      value={giftCardInput}
+                      onChange={e => setGiftCardInput(e.target.value.toUpperCase())}
+                      style={{ ...styles.input, flex: 1, fontFamily: 'monospace', textTransform: 'uppercase' }}
+                    />
+                    <button
+                      type="button"
+                      disabled={applyingGiftCard || !giftCardInput.trim()}
+                      onClick={() => handleApplyGiftCard()}
+                      style={{
+                        padding: '0 20px',
+                        background: 'var(--c-accent)',
+                        color: 'var(--c-accent-fg)',
+                        border: 'none',
+                        borderRadius: 'var(--r-md)',
+                        fontWeight: 600,
+                        fontSize: '13px',
+                        cursor: 'pointer',
+                        opacity: !giftCardInput.trim() ? 0.6 : 1
+                      }}
+                    >
+                      {applyingGiftCard ? 'Verifying...' : 'Apply'}
+                    </button>
+                  </div>
+
+                  {giftCardError && (
+                    <div style={{ fontSize: '12px', color: '#DC2626', marginBottom: '10px' }}>
+                      {giftCardError}
+                    </div>
+                  )}
+
+                  {/* Quick Test Demo Codes */}
+                  <div style={{ marginTop: '12px' }}>
+                    <div style={{ fontSize: '11px', color: 'var(--c-text-3)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '8px' }}>
+                      Quick Test Demo Codes:
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {[
+                        { code: 'LUME-2026-GOLD-100', val: '$100' },
+                        { code: 'LUME-FASHION-50', val: '$50' },
+                        { code: 'LUME-VIP-250', val: '$250' }
+                      ].map(dc => (
+                        <button
+                          key={dc.code}
+                          type="button"
+                          onClick={() => handleApplyGiftCard(dc.code)}
+                          style={{
+                            padding: '4px 10px',
+                            borderRadius: 'var(--r-full)',
+                            background: 'var(--c-surface)',
+                            border: '1px solid var(--c-border)',
+                            color: 'var(--c-text-2)',
+                            fontSize: '11px',
+                            fontFamily: 'monospace',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {dc.code} ({dc.val})
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </section>
+
             <section style={styles.section}>
               <h2 style={styles.sectionTitle}>Payment</h2>
-              <div style={styles.mockCard}>
-                <div style={styles.mockCardTop}>
-                  <span style={styles.mockCardType}>Visa</span>
-                  <span style={styles.mockCardDots}>•••• 4242</span>
+              {total === 0 ? (
+                <div style={{
+                  padding: '20px',
+                  borderRadius: 'var(--r-md)',
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.3)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '12px',
+                  color: 'var(--c-text-1)'
+                }}>
+                  <CheckCircle2 size={24} color="#10B981" />
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '14px' }}>Order Fully Covered by Gift Card</div>
+                    <div style={{ fontSize: '13px', color: 'var(--c-text-2)', marginTop: '2px' }}>
+                      No credit card charge is required for this transaction.
+                    </div>
+                  </div>
                 </div>
-                <div style={styles.mockCardBottom}>
-                  <span>Lumé Customer</span>
-                  <span>12/26</span>
-                </div>
-              </div>
-              <p style={styles.paymentDisclaimer}>Payment is simulated. No real charges.</p>
+              ) : (
+                <>
+                  <div style={styles.mockCard}>
+                    <div style={styles.mockCardTop}>
+                      <span style={styles.mockCardType}>Visa</span>
+                      <span style={styles.mockCardDots}>•••• 4242</span>
+                    </div>
+                    <div style={styles.mockCardBottom}>
+                      <span>Lumé Customer</span>
+                      <span>12/26</span>
+                    </div>
+                  </div>
+                  <p style={styles.paymentDisclaimer}>
+                    {giftCardDiscount > 0 ? `Remaining $${total.toFixed(2)} will be charged to simulated card.` : 'Payment is simulated. No real charges.'}
+                  </p>
+                </>
+              )}
             </section>
 
             <button type="submit" disabled={loading} style={styles.submitBtn}>
-              {loading ? 'Processing...' : `Place Order - $${total.toFixed(2)}`}
+              {loading ? 'Processing...' : total === 0 ? 'Place Order (Covered by Gift Card)' : `Place Order - $${total.toFixed(2)}`}
             </button>
           </form>
         </div>
@@ -190,6 +395,18 @@ export default function CheckoutPage() {
               <span style={styles.summaryLabel}>Tax</span>
               <span style={styles.summaryValue}>${tax.toFixed(2)}</span>
             </div>
+
+            {giftCardDiscount > 0 && (
+              <div style={styles.summaryRow}>
+                <span style={{ ...styles.summaryLabel, color: '#10B981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Gift size={14} />
+                  Lumé Gift Card
+                </span>
+                <span style={{ ...styles.summaryValue, color: '#10B981', fontWeight: 700 }}>
+                  -${giftCardDiscount.toFixed(2)}
+                </span>
+              </div>
+            )}
 
             <div style={styles.separator} />
 

@@ -1,10 +1,15 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useCart } from '../context/AppContext';
-import { Trash2, Lock, RotateCcw, Truck, ShoppingBag, Minus, Plus, ArrowRight } from 'lucide-react';
+import { giftCardService, GiftCard } from '../services/giftCardService';
+import { Trash2, Lock, RotateCcw, Truck, ShoppingBag, Minus, Plus, ArrowRight, Gift, Check, X } from 'lucide-react';
 
 export default function CartPage() {
   const { cart, itemCount, subtotal, updateQty, removeItem } = useCart();
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedCard, setAppliedCard] = useState<GiftCard | null>(null);
+  const [promoDiscount, setPromoDiscount] = useState<number>(0);
+  const [promoMsg, setPromoMsg] = useState<{ text: string; isError: boolean } | null>(null);
 
   if (itemCount === 0) {
     return (
@@ -13,16 +18,62 @@ export default function CartPage() {
           <ShoppingBag size={64} style={styles.emptyIcon} strokeWidth={1} />
           <h2 style={styles.emptyTitle}>Your bag is empty</h2>
           <p style={styles.emptyDesc}>Looks like you haven't added anything to your bag yet.</p>
-          <Link to="/products" style={styles.emptyButton}>
-            Discover our latest collection
-          </Link>
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginTop: '24px', flexWrap: 'wrap' }}>
+            <Link to="/products" style={styles.emptyButton}>
+              Discover our latest collection
+            </Link>
+            <Link to="/gift-cards" style={{ ...styles.emptyButton, background: 'rgba(196,151,74,0.15)', color: 'var(--c-accent-2)' }}>
+              Send a Gift Card
+            </Link>
+          </div>
         </div>
       </div>
     );
   }
 
   const tax = subtotal * 0.08; // Simulated 8% tax for UI purposes
-  const total = subtotal + tax;
+  const grossTotal = subtotal + tax;
+  const giftCardDeduction = appliedCard 
+    ? Math.min(appliedCard.currentBalance, grossTotal - promoDiscount)
+    : 0;
+  const total = Math.max(0, grossTotal - promoDiscount - giftCardDeduction);
+
+  const handleApplyPromo = () => {
+    const code = promoCode.trim().toUpperCase();
+    if (!code) return;
+    setPromoMsg(null);
+
+    // First check if it's a gift card
+    const gcRes = giftCardService.getCardByCode(code);
+    if (gcRes.card) {
+      if (gcRes.card.currentBalance <= 0) {
+        setPromoMsg({ text: 'This gift card has a $0.00 balance.', isError: true });
+      } else {
+        setAppliedCard(gcRes.card);
+        setPromoMsg({ text: `Lumé Gift Card applied! $${gcRes.card.currentBalance.toFixed(2)} balance available.`, isError: false });
+        setPromoCode('');
+      }
+      return;
+    }
+
+    // Check discount promo codes
+    if (code === 'LUME10') {
+      const disc = Math.round(subtotal * 0.10 * 100) / 100;
+      setPromoDiscount(disc);
+      setPromoMsg({ text: '10% discount applied!', isError: false });
+      setPromoCode('');
+      return;
+    }
+    if (code === 'LUME20') {
+      const disc = Math.round(subtotal * 0.20 * 100) / 100;
+      setPromoDiscount(disc);
+      setPromoMsg({ text: '20% VIP discount applied!', isError: false });
+      setPromoCode('');
+      return;
+    }
+
+    setPromoMsg({ text: 'Invalid code. Try: LUME-2026-GOLD-100 or LUME10', isError: true });
+  };
 
   return (
     <div className="cart-page" style={styles.container}>
@@ -106,6 +157,39 @@ export default function CartPage() {
               <span style={styles.summaryValueMuted}>Calculated at checkout</span>
             </div>
 
+            {promoDiscount > 0 && (
+              <div style={styles.summaryRow}>
+                <span style={{ ...styles.summaryLabel, color: 'var(--c-accent-2)' }}>Promo Discount</span>
+                <span style={{ ...styles.summaryValue, color: 'var(--c-accent-2)', fontWeight: 600 }}>-${promoDiscount.toFixed(2)}</span>
+              </div>
+            )}
+
+            {giftCardDeduction > 0 && appliedCard && (
+              <div style={{
+                ...styles.summaryRow,
+                padding: '6px 10px',
+                borderRadius: '6px',
+                background: 'rgba(16, 185, 129, 0.08)',
+                marginTop: '4px'
+              }}>
+                <span style={{ ...styles.summaryLabel, color: '#10B981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Gift size={14} />
+                  <span>{appliedCard.code}</span>
+                </span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ ...styles.summaryValue, color: '#10B981', fontWeight: 700 }}>
+                    -${giftCardDeduction.toFixed(2)}
+                  </span>
+                  <button 
+                    onClick={() => { setAppliedCard(null); setPromoMsg(null); }}
+                    style={{ background: 'none', border: 'none', color: 'var(--c-text-3)', cursor: 'pointer', padding: 0 }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div style={styles.separator} />
 
             <div style={styles.totalRow}>
@@ -116,16 +200,36 @@ export default function CartPage() {
             <div style={styles.promoContainer}>
               <input 
                 type="text" 
-                placeholder="Promo code" 
+                placeholder="Gift card or promo code" 
+                value={promoCode}
+                onChange={e => setPromoCode(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && handleApplyPromo()}
                 style={styles.promoInput}
               />
-              <button style={styles.promoBtn}>Apply</button>
+              <button onClick={handleApplyPromo} style={styles.promoBtn}>Apply</button>
             </div>
+
+            {promoMsg && (
+              <div style={{
+                fontSize: '12px',
+                color: promoMsg.isError ? '#DC2626' : '#10B981',
+                marginTop: '6px',
+                lineHeight: 1.4
+              }}>
+                {promoMsg.text}
+              </div>
+            )}
 
             <Link to="/checkout" style={styles.checkoutBtn}>
               Proceed to Checkout
               <ArrowRight size={18} style={{ marginLeft: 8 }} />
             </Link>
+
+            <div style={{ textAlign: 'center', marginTop: '12px' }}>
+              <Link to="/gift-cards" style={{ fontSize: '13px', color: 'var(--c-accent-2)', textDecoration: 'none', fontWeight: 600 }}>
+                Looking for a gift? Send a Digital Gift Card &rarr;
+              </Link>
+            </div>
 
             <div style={styles.trustBadges}>
               <div style={styles.badge}>

@@ -22,7 +22,8 @@ import {
   CheckCircle2, 
   ShoppingBag, 
   ArrowRight,
-  XCircle
+  XCircle,
+  Gift
 } from 'lucide-react';
 
 type Tab = 'INFO' | 'ORDERS' | 'PREF';
@@ -258,6 +259,16 @@ export default function ProfilePage() {
               <Moon size={18} />
               <span>Preferences</span>
             </button>
+
+            <Link 
+              to="/gift-cards"
+              className="sidebar-nav-btn"
+              style={{ textDecoration: 'none' }}
+            >
+              <Gift size={18} />
+              <span>Gift Cards & Vault</span>
+              <span className="sidebar-badge" style={{ background: 'rgba(196,151,74,0.15)', color: 'var(--c-accent-2)' }}>ACTIVE</span>
+            </Link>
           </nav>
 
           <div className="sidebar-divider" />
