@@ -365,8 +365,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <main
           style={{
             flex: 1,
-            padding: '24px clamp(16px, 2.5vw, 28px)',
-            maxWidth: 1440,
+            padding: '24px clamp(16px, 2.5vw, 32px)',
+            maxWidth: 1600,
             width: '100%',
             margin: '0 auto',
             boxSizing: 'border-box',

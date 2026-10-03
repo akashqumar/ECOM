@@ -321,7 +321,7 @@ export default function AdminInventoryPage() {
         }}
       >
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13, minWidth: 840 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
             <thead>
               <tr
                 style={{
@@ -331,29 +331,29 @@ export default function AdminInventoryPage() {
                   fontSize: 11,
                   fontWeight: 700,
                   textTransform: 'uppercase',
-                  letterSpacing: '0.06em',
+                  letterSpacing: '0.05em',
                 }}
               >
-                <th style={{ padding: '16px 20px', minWidth: 260 }}>Product</th>
-                <th style={{ padding: '16px 16px', minWidth: 120 }}>SKU</th>
-                <th style={{ padding: '16px 16px', minWidth: 140 }}>Warehouse</th>
-                <th style={{ padding: '16px 16px', minWidth: 90 }}>Available</th>
-                <th style={{ padding: '16px 16px', minWidth: 120 }}>Reserved</th>
-                <th style={{ padding: '16px 16px', minWidth: 80 }}>Total</th>
-                <th style={{ padding: '16px 16px', minWidth: 120 }}>Health</th>
-                <th style={{ padding: '16px 20px', textAlign: 'right', minWidth: 210 }}>Atomic Actions</th>
+                <th style={{ padding: '12px 16px' }}>Product</th>
+                <th style={{ padding: '12px 12px' }}>SKU</th>
+                <th style={{ padding: '12px 12px' }}>Warehouse</th>
+                <th style={{ padding: '12px 12px' }}>Available</th>
+                <th style={{ padding: '12px 12px' }}>Reserved</th>
+                <th style={{ padding: '12px 12px' }}>Total</th>
+                <th style={{ padding: '12px 12px' }}>Health</th>
+                <th style={{ padding: '12px 16px', textAlign: 'right' }}>Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 Array.from({ length: 8 }).map((_, idx) => (
                   <tr key={idx} style={{ borderBottom: '1px solid var(--border-subtle)' }}>
-                    <td colSpan={8} style={{ padding: '16px 20px' }}><div className="skeleton" style={{ height: 20 }} /></td>
+                    <td colSpan={8} style={{ padding: '12px 16px' }}><div className="skeleton" style={{ height: 20 }} /></td>
                   </tr>
                 ))
               ) : paginatedItems.length === 0 ? (
                 <tr>
-                  <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--c-text-3)' }}>
+                  <td colSpan={8} style={{ padding: '50px 20px', textAlign: 'center', color: 'var(--c-text-3)' }}>
                     <Package size={44} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
                     <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>No inventory records match</div>
                   </td>
@@ -369,12 +369,12 @@ export default function AdminInventoryPage() {
                       key={item.id}
                       style={{ borderBottom: '1px solid var(--border-subtle)' }}
                     >
-                      <td style={{ padding: '14px 20px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <td style={{ padding: '10px 16px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           <div
                             style={{
-                              width: 40,
-                              height: 40,
+                              width: 36,
+                              height: 36,
                               borderRadius: 'var(--r-sm)',
                               background: 'var(--glass-bg)',
                               border: '1px solid var(--glass-border)',
@@ -389,36 +389,36 @@ export default function AdminInventoryPage() {
                             {product?.images?.[0] ? (
                               <img src={product.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                             ) : (
-                              <Package size={18} color="var(--c-text-3)" />
+                              <Package size={16} color="var(--c-text-3)" />
                             )}
                           </div>
-                          <div style={{ minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, color: 'var(--c-text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
+                          <div style={{ minWidth: 0, maxWidth: 240 }}>
+                            <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--c-text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                               {product?.name || `Product: ${item.productId.slice(0, 8)}...`}
                             </div>
-                            <div style={{ fontSize: 11, color: 'var(--c-text-3)' }}>
-                              {product?.brand ? `${product.brand} • ` : ''}${product ? `$${product.price.toFixed(2)}` : ''}
+                            <div style={{ fontSize: 11, color: 'var(--c-text-3)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                              {product?.brand ? `${product.brand} • ` : ''}{product ? `$${product.price.toFixed(2)}` : ''}
                             </div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '14px 16px', fontFamily: 'monospace', fontSize: 12, color: 'var(--c-text-2)', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 12px', fontFamily: 'monospace', fontSize: 12, color: 'var(--c-text-2)', whiteSpace: 'nowrap' }}>
                         {product?.sku || 'N/A'}
                       </td>
-                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--c-text-2)' }}>
-                          <Warehouse size={13} />
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--c-text-2)' }}>
+                          <Warehouse size={12} />
                           {item.warehouseId || customization.defaultWarehouse}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
-                        <span style={{ fontSize: 15, fontWeight: 800, color: isZero ? 'var(--danger)' : isLow ? 'var(--warning)' : 'var(--c-text-1)' }}>
+                      <td style={{ padding: '10px 12px' }}>
+                        <span style={{ fontSize: 14, fontWeight: 800, color: isZero ? 'var(--danger)' : isLow ? 'var(--warning)' : 'var(--c-text-1)' }}>
                           {item.availableQuantity}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                         {item.reservedQuantity > 0 ? (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--info)', background: 'var(--info-light)', padding: '2px 8px', borderRadius: 'var(--r-full)', display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid var(--border-subtle)' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--info)', background: 'var(--info-light)', padding: '2px 7px', borderRadius: 'var(--r-full)', display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid var(--border-subtle)' }}>
                             <Lock size={10} />
                             {item.reservedQuantity} locked
                           </span>
@@ -426,39 +426,40 @@ export default function AdminInventoryPage() {
                           <span style={{ color: 'var(--c-text-3)' }}>0</span>
                         )}
                       </td>
-                      <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--c-text-2)' }}>
+                      <td style={{ padding: '10px 12px', fontWeight: 700, color: 'var(--c-text-2)' }}>
                         {item.totalQuantity}
                       </td>
-                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 12px', whiteSpace: 'nowrap' }}>
                         {isZero ? (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', background: 'var(--danger-light)', padding: '3px 9px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', background: 'var(--danger-light)', padding: '2px 8px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
                             Out of Stock
                           </span>
                         ) : isLow ? (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--warning)', background: 'var(--warning-light)', padding: '3px 9px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--warning)', background: 'var(--warning-light)', padding: '2px 8px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
                             Low ({item.availableQuantity})
                           </span>
                         ) : (
-                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-light)', padding: '3px 9px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-light)', padding: '2px 8px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
                             Optimal
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '14px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
+                      <td style={{ padding: '10px 16px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <button
                           onClick={() => { setSelectedItem(item); setAdjustDelta(20); }}
                           className="glass-btn-primary"
                           style={{
-                            padding: '6px 14px',
-                            height: 32,
+                            padding: '5px 12px',
+                            height: 28,
                             borderRadius: 'var(--r-full)',
-                            fontSize: 12,
+                            fontSize: 11,
+                            fontWeight: 600,
                             display: 'inline-flex',
                             alignItems: 'center',
-                            gap: 6,
+                            gap: 5,
                           }}
                         >
-                          <Boxes size={13} />
+                          <Boxes size={12} />
                           <span>Adjust Stock</span>
                         </button>
                       </td>
