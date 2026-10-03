@@ -26,6 +26,8 @@ import {
   Hash,
   ExternalLink,
   CreditCard,
+  Printer,
+  FileDown,
 } from 'lucide-react';
 import { orderApi } from '../services/api';
 import type { Order, OrderTimeline } from '../types';
@@ -233,6 +235,285 @@ export default function AdminOrdersPage() {
   const shippedCount = orders.filter((o) => o.status === 'SHIPPED').length;
   const deliveredCount = orders.filter((o) => o.status === 'DELIVERED').length;
 
+  const handlePrintOrders = () => {
+    if (filteredOrders.length === 0) {
+      showToast('No orders found in current filter to export/print', 'error');
+      return;
+    }
+
+    const filterName =
+      statusFilter === 'all'
+        ? 'All Orders'
+        : statusFilter === 'READY'
+        ? 'Ready to Pack'
+        : statusFilter === 'PROCESSING'
+        ? 'Processing'
+        : statusFilter === 'SHIPPED'
+        ? 'Dispatched / In-Transit'
+        : statusFilter === 'DELIVERED'
+        ? 'Delivered'
+        : 'Cancelled / Failed';
+
+    const totalFilterRevenue = filteredOrders.reduce((sum, o) => sum + (o.totalAmount || 0), 0);
+    const totalFilterItems = filteredOrders.reduce((sum, o) => {
+      const itemsCount = o.items?.reduce((iSum, it) => iSum + (it.quantity || 1), 0) || o.items?.length || 0;
+      return sum + itemsCount;
+    }, 0);
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      showToast('Popup blocker prevented print window from opening. Please allow popups.', 'error');
+      return;
+    }
+
+    const orderRowsHtml = filteredOrders
+      .map((order, idx) => {
+        const itemRows = (order.items || [])
+          .map(
+            (item) => `
+            <div style="font-size: 11px; margin-bottom: 2px;">
+              <strong>${item.productName || 'Item'}</strong> &times; ${item.quantity}
+              <span style="color: #64748b; margin-left: 4px;">(SKU: ${item.sku || 'N/A'})</span>
+              <span style="float: right; font-weight: 600;">$${(item.subtotal || item.price * item.quantity).toFixed(2)}</span>
+            </div>`
+          )
+          .join('');
+
+        const statusColor =
+          order.status === 'DELIVERED' || order.status === 'CONFIRMED'
+            ? '#059669'
+            : order.status === 'SHIPPED'
+            ? '#0284c7'
+            : order.status === 'CANCELLED' || order.status === 'FAILED'
+            ? '#dc2626'
+            : '#d97706';
+
+        return `
+          <tr style="page-break-inside: avoid; border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 10px 8px; vertical-align: top; font-weight: 700; font-family: monospace; font-size: 12px;">
+              #${order.orderNumber}
+              <div style="font-size: 10px; color: #64748b; font-family: system-ui; font-weight: 400; margin-top: 2px;">
+                ${new Date(order.createdAt).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+              </div>
+            </td>
+            <td style="padding: 10px 8px; vertical-align: top;">
+              <span style="display: inline-block; padding: 2px 8px; border-radius: 9999px; font-size: 10px; font-weight: 700; background: ${statusColor}18; color: ${statusColor}; border: 1px solid ${statusColor}40;">
+                ${order.status}
+              </span>
+              ${
+                order.trackingNumber
+                  ? `<div style="font-size: 10px; color: #0284c7; margin-top: 4px; font-family: monospace;">
+                      ${order.carrier || 'Carrier'}: ${order.trackingNumber}
+                     </div>`
+                  : ''
+              }
+            </td>
+            <td style="padding: 10px 8px; vertical-align: top; font-size: 11px;">
+              <div style="font-weight: 600; color: #1e293b;">${order.shippingAddress || 'Standard Destination'}</div>
+              <div style="font-size: 10px; color: #64748b; margin-top: 2px;">User: ${order.userId}</div>
+            </td>
+            <td style="padding: 10px 8px; vertical-align: top;">
+              ${itemRows || '<span style="color: #94a3b8; font-size: 11px;">No item details</span>'}
+            </td>
+            <td style="padding: 10px 8px; vertical-align: top; text-align: right; font-weight: 800; font-size: 13px; color: #0f172a; white-space: nowrap;">
+              $${order.totalAmount.toFixed(2)}
+            </td>
+          </tr>
+        `;
+      })
+      .join('');
+
+    const htmlContent = `
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Lumé Commerce - Orders Manifest (${filterName})</title>
+          <meta charset="utf-8" />
+          <style>
+            @media print {
+              @page {
+                size: A4;
+                margin: 12mm 15mm;
+              }
+              body {
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+              }
+              .no-print {
+                display: none !important;
+              }
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+              color: #0f172a;
+              background: #fff;
+              margin: 0;
+              padding: 24px;
+              line-height: 1.4;
+            }
+            .header-bar {
+              display: flex;
+              justify-content: space-between;
+              align-items: flex-start;
+              border-bottom: 2px solid #0f172a;
+              padding-bottom: 16px;
+              margin-bottom: 20px;
+            }
+            .brand {
+              font-size: 22px;
+              font-weight: 800;
+              letter-spacing: -0.5px;
+            }
+            .badge {
+              font-size: 11px;
+              background: #f1f5f9;
+              padding: 4px 10px;
+              border-radius: 4px;
+              font-weight: 600;
+              color: #475569;
+            }
+            .summary-cards {
+              display: grid;
+              grid-template-columns: repeat(4, 1fr);
+              gap: 12px;
+              margin-bottom: 20px;
+            }
+            .summary-card {
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              padding: 10px 14px;
+              background: #f8fafc;
+            }
+            .summary-card .label {
+              font-size: 10px;
+              color: #64748b;
+              text-transform: uppercase;
+              font-weight: 700;
+            }
+            .summary-card .value {
+              font-size: 16px;
+              font-weight: 800;
+              color: #0f172a;
+              margin-top: 2px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin-top: 10px;
+            }
+            th {
+              background: #f1f5f9;
+              padding: 8px;
+              font-size: 10px;
+              text-transform: uppercase;
+              color: #475569;
+              letter-spacing: 0.05em;
+              text-align: left;
+              border-bottom: 2px solid #cbd5e1;
+            }
+            .print-btn-bar {
+              margin-bottom: 20px;
+              padding: 12px 16px;
+              background: #f1f5f9;
+              border-radius: 8px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .btn {
+              background: #0284c7;
+              color: #fff;
+              border: none;
+              padding: 8px 18px;
+              font-size: 13px;
+              font-weight: 700;
+              border-radius: 6px;
+              cursor: pointer;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="print-btn-bar no-print">
+            <div>
+              <strong>Report ready:</strong> Click <strong>Print / Save as PDF</strong> or use Ctrl+P (Cmd+P on Mac).
+            </div>
+            <button class="btn" onclick="window.print()">Print / Save as PDF</button>
+          </div>
+
+          <div class="header-bar">
+            <div>
+              <div class="brand">LUMÉ COMMERCE</div>
+              <div style="font-size: 13px; font-weight: 600; color: #334155; margin-top: 2px;">
+                Orders & Fulfillment Manifest
+              </div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 4px;">
+                Filter: <strong>${filterName}</strong> ${searchTerm ? `• Search query: "${searchTerm}"` : ''}
+              </div>
+            </div>
+            <div style="text-align: right;">
+              <div class="badge">CONFIDENTIAL • INTERNAL DISPATCH</div>
+              <div style="font-size: 11px; color: #64748b; margin-top: 6px;">
+                Generated: ${new Date().toLocaleString()}
+              </div>
+            </div>
+          </div>
+
+          <div class="summary-cards">
+            <div class="summary-card">
+              <div class="label">Total Orders</div>
+              <div class="value">${filteredOrders.length}</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Total Products</div>
+              <div class="value">${totalFilterItems} units</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Active Filter</div>
+              <div class="value" style="font-size: 13px;">${filterName}</div>
+            </div>
+            <div class="summary-card">
+              <div class="label">Gross Order Volume</div>
+              <div class="value" style="color: #059669;">$${totalFilterRevenue.toFixed(2)}</div>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th style="width: 18%;">Order # / Date</th>
+                <th style="width: 18%;">Status / Logistics</th>
+                <th style="width: 26%;">Customer / Shipping Address</th>
+                <th style="width: 26%;">Products / Line Items</th>
+                <th style="width: 12%; text-align: right;">Total Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${orderRowsHtml}
+            </tbody>
+          </table>
+
+          <div style="margin-top: 30px; border-top: 1px solid #cbd5e1; padding-top: 12px; display: flex; justify-content: space-between; font-size: 10px; color: #94a3b8;">
+            <span>Lumé High-Performance Distributed Commerce Platform</span>
+            <span>Page 1 of Manifest • Order Lifecycle Outbox & Fulfillment System</span>
+          </div>
+
+          <script>
+            // Automatically prompt print dialog after page renders
+            window.addEventListener('DOMContentLoaded', () => {
+              setTimeout(() => {
+                window.print();
+              }, 400);
+            });
+          </script>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(htmlContent);
+    printWindow.document.close();
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="animate-fade-in">
       {/* Toast */}
@@ -275,15 +556,34 @@ export default function AdminOrdersPage() {
             Manage order lifecycle, trigger Kafka fulfillment events, and track multi-stage Saga timelines.
           </p>
         </div>
-        <button
-          onClick={() => loadOrders(false)}
-          disabled={refreshing}
-          className="glass-btn"
-          style={{ cursor: refreshing ? 'not-allowed' : 'pointer' }}
-        >
-          <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
-          <span>{refreshing ? 'Syncing...' : 'Sync Orders'}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button
+            onClick={handlePrintOrders}
+            className="glass-btn"
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 8,
+              padding: '8px 16px',
+              fontSize: 13,
+              fontWeight: 600,
+            }}
+            title="Export and print manifest PDF for the selected filter"
+          >
+            <Printer size={15} color="var(--accent)" />
+            <span>Print PDF ({filteredOrders.length})</span>
+          </button>
+
+          <button
+            onClick={() => loadOrders(false)}
+            disabled={refreshing}
+            className="glass-btn"
+            style={{ cursor: refreshing ? 'not-allowed' : 'pointer' }}
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            <span>{refreshing ? 'Syncing...' : 'Sync Orders'}</span>
+          </button>
+        </div>
       </div>
 
       {/* KPI Metric Strip */}
@@ -379,54 +679,73 @@ export default function AdminOrdersPage() {
           </div>
         </div>
 
-        {/* Status filter tabs */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-          {[
-            { id: 'all', label: 'All Orders', count: orders.length },
-            { id: 'READY', label: 'Ready to Pack', count: readyCount },
-            { id: 'PROCESSING', label: 'Processing', count: processingCount },
-            { id: 'SHIPPED', label: 'Dispatched / In-Transit', count: shippedCount },
-            { id: 'DELIVERED', label: 'Delivered', count: deliveredCount },
-            { id: 'CANCELLED', label: 'Cancelled / Failed', count: orders.filter((o) => o.status === 'CANCELLED' || o.status === 'FAILED').length },
-          ].map((tab) => {
-            const active = statusFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id)}
-                style={{
-                  padding: '7px 16px',
-                  borderRadius: 'var(--r-full)',
-                  border: active ? '1px solid var(--accent)' : '1px solid var(--glass-border)',
-                  background: active ? 'var(--accent-light)' : 'var(--glass-bg)',
-                  backdropFilter: 'var(--glass-blur)',
-                  color: active ? 'var(--accent)' : 'var(--c-text-2)',
-                  fontSize: 12,
-                  fontWeight: active ? 700 : 500,
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  boxShadow: active ? '0 0 12px var(--accent-glow)' : 'var(--glass-highlight)',
-                  transition: 'all var(--transition)',
-                }}
-              >
-                <span>{tab.label}</span>
-                <span
+        {/* Status filter tabs & Action Row */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {[
+              { id: 'all', label: 'All Orders', count: orders.length },
+              { id: 'READY', label: 'Ready to Pack', count: readyCount },
+              { id: 'PROCESSING', label: 'Processing', count: processingCount },
+              { id: 'SHIPPED', label: 'Dispatched / In-Transit', count: shippedCount },
+              { id: 'DELIVERED', label: 'Delivered', count: deliveredCount },
+              { id: 'CANCELLED', label: 'Cancelled / Failed', count: orders.filter((o) => o.status === 'CANCELLED' || o.status === 'FAILED').length },
+            ].map((tab) => {
+              const active = statusFilter === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  onClick={() => setStatusFilter(tab.id)}
                   style={{
-                    fontSize: 11,
-                    padding: '1px 7px',
+                    padding: '7px 16px',
                     borderRadius: 'var(--r-full)',
-                    background: active ? 'var(--accent)' : 'var(--bg-tertiary)',
-                    color: active ? '#fff' : 'var(--c-text-3)',
-                    fontWeight: 700,
+                    border: active ? '1px solid var(--accent)' : '1px solid var(--glass-border)',
+                    background: active ? 'var(--accent-light)' : 'var(--glass-bg)',
+                    backdropFilter: 'var(--glass-blur)',
+                    color: active ? 'var(--accent)' : 'var(--c-text-2)',
+                    fontSize: 12,
+                    fontWeight: active ? 700 : 500,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    boxShadow: active ? '0 0 12px var(--accent-glow)' : 'var(--glass-highlight)',
+                    transition: 'all var(--transition)',
                   }}
                 >
-                  {tab.count}
-                </span>
-              </button>
-            );
-          })}
+                  <span>{tab.label}</span>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      padding: '1px 7px',
+                      borderRadius: 'var(--r-full)',
+                      background: active ? 'var(--accent)' : 'var(--bg-tertiary)',
+                      color: active ? '#fff' : 'var(--c-text-3)',
+                      fontWeight: 700,
+                    }}
+                  >
+                    {tab.count}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            onClick={handlePrintOrders}
+            className="glass-btn"
+            style={{
+              padding: '6px 14px',
+              fontSize: 12,
+              fontWeight: 600,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            title="Print or export filtered list"
+          >
+            <Printer size={13} color="var(--accent)" />
+            <span>Print Manifest ({filteredOrders.length})</span>
+          </button>
         </div>
       </div>
 
