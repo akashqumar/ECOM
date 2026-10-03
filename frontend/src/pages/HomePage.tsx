@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useCart, useWishlist } from '../context/AppContext';
+import { useCart, useWishlist, useToast } from '../context/AppContext';
 import { catalogApi } from '../services/api';
 import { Product, Category } from '../types';
 import { 
@@ -23,6 +23,7 @@ import {
 const AeroProductCard = ({ product }: { product: Product }) => {
   const { addItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { showToast } = useToast();
   const [added, setAdded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
 
@@ -31,6 +32,7 @@ const AeroProductCard = ({ product }: { product: Product }) => {
     e.stopPropagation();
     addItem(product);
     setAdded(true);
+    showToast(`Added "${product.name}" to your shopping bag.`, 'success', 'Bag Updated');
     setTimeout(() => setAdded(false), 1600);
   };
 
@@ -67,6 +69,11 @@ const AeroProductCard = ({ product }: { product: Product }) => {
             e.preventDefault(); 
             e.stopPropagation(); 
             toggleWishlist(product);
+            showToast(
+              isSaved ? `Removed "${product.name}" from your wishlist.` : `Saved "${product.name}" to your wishlist.`,
+              'info',
+              isSaved ? 'Wishlist' : 'Saved Item'
+            );
           }}
         >
           <Heart size={16} fill={isSaved ? '#EF4444' : 'none'} color={isSaved ? '#EF4444' : 'currentColor'} />

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useSearchParams, useNavigate, Link, useLocation } from 'react-router-dom';
-import { useCart, useWishlist } from '../context/AppContext';
+import { useCart, useWishlist, useToast } from '../context/AppContext';
 import { catalogApi } from '../services/api';
 import { Product, Category } from '../types';
 import { 
@@ -31,6 +31,7 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
   const navigate = useNavigate();
   const { addItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { showToast } = useToast();
   const gridTopRef = useRef<HTMLDivElement>(null);
 
   // Detect mode from prop or path or query param
@@ -268,17 +269,19 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
       await addItem({
         id: product.id,
         name: product.name,
-        price: product.price,
+        price: product.discountPrice ?? product.price,
         images: product.images,
         sku: product.sku
       }, 1);
       
       setCartSuccessId(product.id);
+      showToast(`Added "${product.name}" to your shopping bag.`, 'success', 'Bag Updated');
       setTimeout(() => {
         setCartSuccessId(null);
       }, 1800);
     } catch (err) {
       console.error('Failed to add to cart', err);
+      showToast(`Could not add "${product.name}" to bag.`, 'error', 'Error');
     } finally {
       setCartLoadingId(null);
     }
@@ -1658,7 +1661,13 @@ export default function ProductsPage({ mode: propMode }: ProductsPageProps) {
                           onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            const wasSaved = isWishlisted(product.id);
                             toggleWishlist(product);
+                            showToast(
+                              wasSaved ? `Removed "${product.name}" from your wishlist.` : `Saved "${product.name}" to your wishlist.`,
+                              'info',
+                              wasSaved ? 'Wishlist' : 'Saved Item'
+                            );
                           }}
                         >
                           <Heart 

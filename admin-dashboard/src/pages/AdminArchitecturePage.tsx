@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import mermaid from 'mermaid';
 import {
   Network,
   Cpu,
@@ -22,7 +23,35 @@ import {
   Lock,
   Workflow,
   Sparkles,
+  GitBranch,
+  Monitor,
+  Code2,
+  Share2,
 } from 'lucide-react';
+
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'dark',
+  securityLevel: 'loose',
+  fontFamily: 'Inter, system-ui, sans-serif',
+  themeVariables: {
+    darkMode: true,
+    background: 'transparent',
+    primaryColor: '#1e293b',
+    primaryTextColor: '#f8fafc',
+    primaryBorderColor: '#38bdf8',
+    lineColor: '#64748b',
+    secondaryColor: '#0f172a',
+    tertiaryColor: '#1e1b4b',
+    edgeLabelBackground: '#0f172a',
+  },
+  flowchart: {
+    curve: 'basis',
+    nodeSpacing: 45,
+    rankSpacing: 55,
+    padding: 15,
+  },
+});
 
 interface ServiceNode {
   id: string;
@@ -206,66 +235,358 @@ const KAFKA_TOPICS: KafkaTopic[] = [
   },
 ];
 
-const SAGA_FLOW_STEPS: FlowStep[] = [
+const SCENARIO_PRESETS: Record<
+  string,
   {
-    from: 'api-gateway',
-    to: 'order-service',
-    action: 'POST /api/checkout',
-    type: 'http',
-    description: 'Customer initiates checkout with UUID idempotency key via Edge Gateway.',
+    title: string;
+    badge: string;
+    badgeColor: string;
+    description: string;
+    steps: FlowStep[];
+  }
+> = {
+  saga_success: {
+    title: 'Happy Path: Distributed Checkout Saga',
+    badge: 'Standard E2E',
+    badgeColor: 'var(--success)',
+    description: 'Successful checkout: stock locking, payment authorized, and customer notification dispatched.',
+    steps: [
+      {
+        from: 'api-gateway',
+        to: 'order-service',
+        action: 'POST /api/checkout',
+        type: 'http',
+        description: 'Customer initiates checkout with UUID idempotency key via Netty Edge Gateway.',
+      },
+      {
+        from: 'order-service',
+        to: 'order-service',
+        action: 'SQL INSERT (Outbox)',
+        type: 'db',
+        description: 'Order created with status PENDING; outbox event written in same atomic DB transaction.',
+      },
+      {
+        from: 'order-service',
+        to: 'inventory-service',
+        action: 'KAFKA: order.created',
+        type: 'kafka',
+        description: 'Outbox poller pushes order event to Kafka topic partitioned by orderId.',
+      },
+      {
+        from: 'inventory-service',
+        to: 'inventory-service',
+        action: 'SELECT FOR UPDATE',
+        type: 'db',
+        description: 'Inventory applies pessimistic DB locks on SKU row to safely decrement available quantity.',
+      },
+      {
+        from: 'inventory-service',
+        to: 'payment-service',
+        action: 'KAFKA: inventory.reserved',
+        type: 'kafka',
+        description: 'Stock successfully reserved. Kafka event triggers simulated payment settlement step.',
+      },
+      {
+        from: 'payment-service',
+        to: 'order-service',
+        action: 'KAFKA: payment.completed',
+        type: 'kafka',
+        description: 'Payment authorized & recorded in ledger. Order Service confirms order state.',
+      },
+      {
+        from: 'order-service',
+        to: 'notification-service',
+        action: 'KAFKA: order.confirmed',
+        type: 'kafka',
+        description: 'Notification service consumes event and sends customer email & push manifest.',
+      },
+    ],
   },
-  {
-    from: 'order-service',
-    to: 'order-service',
-    action: 'SQL INSERT (Outbox)',
-    type: 'db',
-    description: 'Order created with status PENDING; outbox event written in same atomic DB transaction.',
+  inventory_failed: {
+    title: 'Compensating Saga: Out of Stock Failure',
+    badge: 'Inventory Rollback',
+    badgeColor: 'var(--danger)',
+    description: 'Pessimistic lock detects 0 quantity: aborts checkout and transitions order to CANCELLED.',
+    steps: [
+      {
+        from: 'api-gateway',
+        to: 'order-service',
+        action: 'POST /api/checkout',
+        type: 'http',
+        description: 'Customer submits order for items with low or competing stock.',
+      },
+      {
+        from: 'order-service',
+        to: 'inventory-service',
+        action: 'KAFKA: order.created',
+        type: 'kafka',
+        description: 'Order Service publishes order.created to Kafka.',
+      },
+      {
+        from: 'inventory-service',
+        to: 'inventory-service',
+        action: 'INSUFFICIENT STOCK',
+        type: 'db',
+        description: 'Pessimistic row lock identifies availableQuantity < requestedQuantity.',
+      },
+      {
+        from: 'inventory-service',
+        to: 'order-service',
+        action: 'KAFKA: inventory.reservation_failed',
+        type: 'kafka',
+        description: 'Inventory emits compensation event to roll back the checkout attempt.',
+      },
+      {
+        from: 'order-service',
+        to: 'order-service',
+        action: 'UPDATE status = CANCELLED',
+        type: 'db',
+        description: 'Order Service updates state to CANCELLED; no financial payment is ever charged.',
+      },
+      {
+        from: 'order-service',
+        to: 'notification-service',
+        action: 'KAFKA: order.cancelled',
+        type: 'kafka',
+        description: 'Customer receives automated "Item Out of Stock" email notification.',
+      },
+    ],
   },
-  {
-    from: 'order-service',
-    to: 'inventory-service',
-    action: 'KAFKA: order.created',
-    type: 'kafka',
-    description: 'Debezium/Outbox poller pushes order event to Kafka topic partitioned by orderId.',
+  payment_failed: {
+    title: 'Compensating Saga: Card Payment Decline',
+    badge: 'Payment Rollback',
+    badgeColor: 'var(--warning)',
+    description: 'Payment settlement declines: unreserves inventory and frees SKU locks.',
+    steps: [
+      {
+        from: 'order-service',
+        to: 'inventory-service',
+        action: 'KAFKA: order.created',
+        type: 'kafka',
+        description: 'Order placed, inventory successfully reserves quantity and locks rows.',
+      },
+      {
+        from: 'inventory-service',
+        to: 'payment-service',
+        action: 'KAFKA: inventory.reserved',
+        type: 'kafka',
+        description: 'Payment Service receives reserved notification to initiate card authorization.',
+      },
+      {
+        from: 'payment-service',
+        to: 'payment-service',
+        action: 'CARD DECLINED / 402',
+        type: 'db',
+        description: 'Payment gateway simulation returns decline (insufficient funds/fraud flag).',
+      },
+      {
+        from: 'payment-service',
+        to: 'inventory-service',
+        action: 'KAFKA: payment.failed',
+        type: 'kafka',
+        description: 'Compensation event broadcasted to trigger inventory replenishment unlock.',
+      },
+      {
+        from: 'inventory-service',
+        to: 'inventory-service',
+        action: 'RELEASE LOCK / RESTORE',
+        type: 'db',
+        description: 'Inventory increment locks execute; reserved stock restored to available pool.',
+      },
+      {
+        from: 'payment-service',
+        to: 'order-service',
+        action: 'KAFKA: order.cancelled',
+        type: 'kafka',
+        description: 'Order marked as FAILED with rollback audit trail.',
+      },
+    ],
   },
-  {
-    from: 'inventory-service',
-    to: 'inventory-service',
-    action: 'SELECT FOR UPDATE',
-    type: 'db',
-    description: 'Inventory applies pessimistic DB locks on SKU row to safely decrement available quantity.',
+  order_fulfillment: {
+    title: 'Warehouse Logistics: Dispatch & Tracking Manifest',
+    badge: 'Logistics Pipeline',
+    badgeColor: 'var(--info)',
+    description: 'Admin triggers shipping dispatch: manifest generated, carrier tracking assigned, and tracking emails sent.',
+    steps: [
+      {
+        from: 'api-gateway',
+        to: 'order-service',
+        action: 'POST /api/orders/{id}/ship',
+        type: 'http',
+        description: 'Warehouse admin clicks Dispatch & Ship with FedEx/UPS tracking code.',
+      },
+      {
+        from: 'order-service',
+        to: 'order-service',
+        action: 'UPDATE status = SHIPPED',
+        type: 'db',
+        description: 'Tracking number & carrier stamped onto order record.',
+      },
+      {
+        from: 'order-service',
+        to: 'notification-service',
+        action: 'KAFKA: order.shipped',
+        type: 'kafka',
+        description: 'Asynchronous event dispatched to Kafka order.shipped topic.',
+      },
+      {
+        from: 'notification-service',
+        to: 'notification-service',
+        action: 'DISPATCH EMAIL + PUSH',
+        type: 'db',
+        description: 'Notification worker formats live tracking URL and emails customer.',
+      },
+    ],
   },
-  {
-    from: 'inventory-service',
-    to: 'payment-service',
-    action: 'KAFKA: inventory.reserved',
-    type: 'kafka',
-    description: 'Stock successfully reserved. Kafka event triggers simulated payment settlement step.',
+  catalog_browsing: {
+    title: 'Catalog Browsing: Sub-50ms Redis Cache-Aside',
+    badge: 'Read Path',
+    badgeColor: 'var(--accent)',
+    description: 'High-throughput catalog reading: Redis cache hit returns response without touching PostgreSQL.',
+    steps: [
+      {
+        from: 'api-gateway',
+        to: 'catalog-service',
+        action: 'GET /api/products',
+        type: 'http',
+        description: 'Customer browses catalog on storefront; request routed via Netty edge.',
+      },
+      {
+        from: 'catalog-service',
+        to: 'catalog-service',
+        action: 'REDIS GET products::page_0',
+        type: 'db',
+        description: 'Cache lookup: 8ms response from in-memory Redis key.',
+      },
+      {
+        from: 'catalog-service',
+        to: 'api-gateway',
+        action: 'HTTP 200 OK (Cache Hit)',
+        type: 'http',
+        description: 'Product array returned with zero DB contention on catalog_db.',
+      },
+    ],
   },
-  {
-    from: 'payment-service',
-    to: 'order-service',
-    action: 'KAFKA: payment.completed',
-    type: 'kafka',
-    description: 'Payment authorized & recorded in ledger. Order Service confirms order state.',
-  },
-  {
-    from: 'order-service',
-    to: 'notification-service',
-    action: 'KAFKA: order.confirmed',
-    type: 'kafka',
-    description: 'Notification service consumes event and sends customer email & push manifest.',
-  },
-];
+};
 
 export default function AdminArchitecturePage() {
+  const [selectedScenarioKey, setSelectedScenarioKey] = useState<string>('saga_success');
+  const activeScenario = SCENARIO_PRESETS[selectedScenarioKey] || SCENARIO_PRESETS.saga_success;
+  const currentScenarioSteps = activeScenario.steps;
+
   const [services, setServices] = useState<ServiceNode[]>(SERVICES_CONFIG);
   const [selectedServiceId, setSelectedServiceId] = useState<string>('order-service');
   const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
   const [isPlayingFlow, setIsPlayingFlow] = useState<boolean>(true);
-  const [diagramMode, setDiagramMode] = useState<'flow' | 'grid'>('flow');
+  // Diagram presentation modes: 'lucid' (Lucid-style clean interactive canvas), 'mermaid' (Official Mermaid.js graph), 'grid' (Matrix cards)
+  const [diagramMode, setDiagramMode] = useState<'lucid' | 'mermaid' | 'grid'>('lucid');
+  const [mermaidSvg, setMermaidSvg] = useState<string>('');
+  const [mermaidRenderError, setMermaidRenderError] = useState<string | null>(null);
   const [liveEventLogs, setLiveEventLogs] = useState<Array<{ id: string; time: string; topic: string; payload: string; status: 'ok' | 'warn' }>>([]);
   const [checkingHealth, setCheckingHealth] = useState<boolean>(false);
+
+  // Generate dynamic Mermaid diagram code representing the active scenario
+  const generateMermaidChart = useCallback(
+    (scenarioKey: string, activeStep: number): string => {
+      const scen = SCENARIO_PRESETS[scenarioKey] || SCENARIO_PRESETS.saga_success;
+      const step = scen.steps[activeStep] || scen.steps[0];
+
+      // Build clean service node labels
+      const mermaidCode = `
+flowchart LR
+    %% Modern LucidFlow / Mermaid Topology
+    classDef clientStyle fill:#0f172a,stroke:#38bdf8,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
+    classDef gatewayStyle fill:#1e1b4b,stroke:#818cf8,stroke-width:2px,color:#f8fafc,rx:8,ry:8;
+    classDef serviceStyle fill:#0f172a,stroke:#334155,stroke-width:1.5px,color:#f8fafc,rx:8,ry:8;
+    classDef activeEmitter fill:#0284c7,stroke:#38bdf8,stroke-width:3px,color:#ffffff,rx:8,ry:8;
+    classDef activeReceiver fill:#b45309,stroke:#f59e0b,stroke-width:3px,color:#ffffff,rx:8,ry:8;
+    classDef kafkaStyle fill:#78350f,stroke:#fbbf24,stroke-width:2px,color:#fef3c7,rx:6,ry:6;
+    classDef dbStyle fill:#1e293b,stroke:#06b6d4,stroke-width:1.5px,color:#e2e8f0,rx:4,ry:4;
+
+    subgraph TIER1 [" 🌐 TIER 1: CLIENTS "]
+        CLI_WEB["🛍️ React Storefront<br/><small>:3000 (Lumé UI)</small>"]:::clientStyle
+        CLI_ADM["🛡️ Admin Console<br/><small>:3001 (Aero UI)</small>"]:::clientStyle
+    end
+
+    subgraph TIER2 [" ⚡ TIER 2: EDGE INGRESS "]
+        GW["🚪 API Gateway<br/><small>:8080 (Netty / WebFlux)<br/>JWT Filter + Redis Limiter</small>"]:::gatewayStyle
+    end
+
+    subgraph TIER3 [" 🧩 TIER 3: MICROSERVICES DOMAIN "]
+        SVC_USER["👤 User Service<br/><small>:8081 (user_db)</small>"]:::serviceStyle
+        SVC_CAT["📦 Catalog Service<br/><small>:8082 (Redis Cache-Aside)</small>"]:::serviceStyle
+        SVC_CART["🛒 Cart Service<br/><small>:8083 (Redis Basket)</small>"]:::serviceStyle
+        SVC_ORDER["📑 Order Orchestrator<br/><small>:8084 (Saga + Outbox)</small>"]:::serviceStyle
+        SVC_INV["🔒 Inventory Service<br/><small>:8085 (Pessimistic Locks)</small>"]:::serviceStyle
+        SVC_PAY["💳 Payment Service<br/><small>:8086 (Ledger / Escrow)</small>"]:::serviceStyle
+        SVC_NOTIF["📬 Notification Service<br/><small>:8087 (Outbox Dispatcher)</small>"]:::serviceStyle
+    end
+
+    subgraph TIER4 [" 📡 TIER 4: EVENT & DATA MESH "]
+        KAFKA["📨 Apache Kafka Bus<br/><small>:29092 (KRaft 3-Partition Topics)<br/>• order.created<br/>• inventory.reserved<br/>• payment.completed</small>"]:::kafkaStyle
+        STORAGE[("💾 PostgreSQL & Redis<br/><small>6 Isolated Databases<br/>+ In-Memory Cache</small>")]:::dbStyle
+    end
+
+    CLI_WEB -->|HTTPS Ingress| GW
+    CLI_ADM -->|Admin Ingress| GW
+
+    GW -.->|REST /profile| SVC_USER
+    GW -.->|REST /products| SVC_CAT
+    GW -.->|REST /cart| SVC_CART
+    GW ==>|REST /checkout| SVC_ORDER
+    GW -.->|REST /ship| SVC_ORDER
+
+    SVC_ORDER ===|1. order.created| KAFKA
+    KAFKA ===|2. Consume order.created| SVC_INV
+    SVC_INV ===|3. inventory.reserved| KAFKA
+    KAFKA ===|4. Consume inventory.reserved| SVC_PAY
+    SVC_PAY ===|5. payment.completed / failed| KAFKA
+    KAFKA ===|6. Update Order Status| SVC_ORDER
+    KAFKA -.->|7. Send Email / Push| SVC_NOTIF
+
+    SVC_USER --- STORAGE
+    SVC_CAT --- STORAGE
+    SVC_CART --- STORAGE
+    SVC_ORDER --- STORAGE
+    SVC_INV --- STORAGE
+    SVC_PAY --- STORAGE
+    SVC_NOTIF --- STORAGE
+
+    %% Active Saga Step Callout
+    subgraph SAGA_BANNER [" 🎯 ACTIVE SAGA FLOW STEP "]
+        ACTIVE_NOTE["${step.action}<br/><b>${step.from}</b> ➔ <b>${step.to}</b><br/><small>${step.description}</small>"]
+    end
+`;
+      return mermaidCode;
+    },
+    []
+  );
+
+  // Render Mermaid SVG asynchronously whenever scenario or step index changes
+  useEffect(() => {
+    let isCancelled = false;
+    const renderChart = async () => {
+      try {
+        const chartDefinition = generateMermaidChart(selectedScenarioKey, activeStepIndex);
+        const uniqueId = `mermaid-arch-${Date.now()}`;
+        const { svg } = await mermaid.render(uniqueId, chartDefinition);
+        if (!isCancelled) {
+          setMermaidSvg(svg);
+          setMermaidRenderError(null);
+        }
+      } catch (err: any) {
+        if (!isCancelled) {
+          console.error('Mermaid render error:', err);
+          setMermaidRenderError(err?.message || 'Mermaid graph parsing failed');
+        }
+      }
+    };
+
+    renderChart();
+    return () => {
+      isCancelled = true;
+    };
+  }, [selectedScenarioKey, activeStepIndex, generateMermaidChart]);
 
   // Poll real-time service health
   const checkHealth = useCallback(async () => {
@@ -296,13 +617,33 @@ export default function AdminArchitecturePage() {
     return () => clearInterval(interval);
   }, [checkHealth]);
 
-  // Animated Saga Flow Stepper Loop
+  // Reset step to 0 when user switches scenario
+  const handleSelectScenario = (key: string) => {
+    setSelectedScenarioKey(key);
+    setActiveStepIndex(0);
+    const scen = SCENARIO_PRESETS[key] || SCENARIO_PRESETS.saga_success;
+    const firstStep = scen.steps[0];
+    if (firstStep) {
+      setLiveEventLogs((logs) => [
+        {
+          id: Math.random().toString(36).substring(7),
+          time: new Date().toLocaleTimeString(),
+          topic: `SCENARIO: ${scen.title}`,
+          payload: `Loaded scenario simulation. Step 1: ${firstStep.action} (${firstStep.description})`,
+          status: 'ok',
+        },
+        ...logs.slice(0, 19),
+      ]);
+    }
+  };
+
+  // Animated Scenario Flow Stepper Loop
   useEffect(() => {
-    if (!isPlayingFlow) return;
+    if (!isPlayingFlow || currentScenarioSteps.length === 0) return;
     const timer = setInterval(() => {
       setActiveStepIndex((prev) => {
-        const next = (prev + 1) % SAGA_FLOW_STEPS.length;
-        const currentStep = SAGA_FLOW_STEPS[next];
+        const next = (prev + 1) % currentScenarioSteps.length;
+        const currentStep = currentScenarioSteps[next];
 
         // Generate synthetic real-time event log
         setLiveEventLogs((logs) => [
@@ -321,10 +662,10 @@ export default function AdminArchitecturePage() {
     }, 2800);
 
     return () => clearInterval(timer);
-  }, [isPlayingFlow]);
+  }, [isPlayingFlow, currentScenarioSteps]);
 
   const activeService = services.find((s) => s.id === selectedServiceId) || services[4];
-  const currentStep = SAGA_FLOW_STEPS[activeStepIndex];
+  const currentStep = currentScenarioSteps[activeStepIndex] || currentScenarioSteps[0];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="animate-fade-in">
@@ -421,6 +762,131 @@ export default function AdminArchitecturePage() {
         </div>
       </div>
 
+      {/* Interactive Scenario Presets Controller */}
+      <div
+        className="glass-panel"
+        style={{
+          padding: '16px 20px',
+          borderRadius: 'var(--radius)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 14,
+          border: '1px solid rgba(56, 189, 248, 0.25)',
+          background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.7) 100%)',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 'var(--r-sm)',
+                background: 'rgba(56, 189, 248, 0.15)',
+                color: 'var(--accent)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Sparkles size={18} />
+            </div>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--c-text-1)' }}>
+                  Interactive Architecture Scenario Simulator
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    padding: '2px 8px',
+                    borderRadius: 'var(--r-full)',
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    color: activeScenario.badgeColor,
+                    border: `1px solid ${activeScenario.badgeColor}40`,
+                  }}
+                >
+                  {activeScenario.badge}
+                </span>
+              </div>
+              <p style={{ fontSize: 11, color: 'var(--c-text-2)', marginTop: 2 }}>
+                {activeScenario.description}
+              </p>
+            </div>
+          </div>
+
+          {/* Scenario Select Dropdown */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              Select Scenario:
+            </label>
+            <select
+              value={selectedScenarioKey}
+              onChange={(e) => handleSelectScenario(e.target.value)}
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--r-md)',
+                background: 'rgba(15, 23, 42, 0.9)',
+                color: 'var(--c-text-1)',
+                border: '1px solid var(--border)',
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: 'pointer',
+                outline: 'none',
+              }}
+            >
+              {Object.entries(SCENARIO_PRESETS).map(([key, item]) => (
+                <option key={key} value={key} style={{ background: '#0f172a', color: '#f8fafc' }}>
+                  {item.title} ({item.steps.length} steps)
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Quick Access Scenario Buttons Bar */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', paddingTop: 6, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', marginRight: 4 }}>
+            Presets:
+          </span>
+          {Object.entries(SCENARIO_PRESETS).map(([key, item]) => {
+            const isSelected = selectedScenarioKey === key;
+            return (
+              <button
+                key={key}
+                onClick={() => handleSelectScenario(key)}
+                style={{
+                  padding: '6px 12px',
+                  borderRadius: 'var(--r-full)',
+                  border: isSelected ? '1px solid var(--accent)' : '1px solid var(--border-subtle)',
+                  background: isSelected ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
+                  color: isSelected ? 'var(--accent)' : 'var(--c-text-2)',
+                  fontSize: 11,
+                  fontWeight: isSelected ? 800 : 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 0 12px rgba(56, 189, 248, 0.3)' : undefined,
+                }}
+              >
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: '50%',
+                    background: item.badgeColor,
+                  }}
+                />
+                <span>{item.title.split(':')[0]}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Main Interactive Topology Mesh & Flow Stepper */}
       <div className="glass-panel" style={{ padding: 24, borderRadius: 'var(--radius)', overflow: 'hidden' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
@@ -432,28 +898,52 @@ export default function AdminArchitecturePage() {
               </h2>
             </div>
 
-            {/* Toggle View: Visual Diagram vs Service Cards */}
-            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.2)', padding: 3, borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
+            {/* Toggle View: Lucid Flow Canvas vs Mermaid.js Engine vs Service Matrix */}
+            <div style={{ display: 'flex', background: 'rgba(0,0,0,0.3)', padding: 3, borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
               <button
-                onClick={() => setDiagramMode('flow')}
+                onClick={() => setDiagramMode('lucid')}
                 style={{
-                  padding: '4px 12px',
+                  padding: '5px 14px',
                   borderRadius: 'var(--r-full)',
                   border: 'none',
                   fontSize: 11,
                   fontWeight: 700,
                   cursor: 'pointer',
-                  background: diagramMode === 'flow' ? 'var(--accent)' : 'transparent',
-                  color: diagramMode === 'flow' ? '#000' : 'var(--c-text-2)',
+                  background: diagramMode === 'lucid' ? 'var(--accent)' : 'transparent',
+                  color: diagramMode === 'lucid' ? '#000' : 'var(--c-text-2)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
                   transition: 'all 0.15s ease',
                 }}
               >
-                Interactive Flow Diagram
+                <Sparkles size={12} />
+                <span>Lucid Interactive Flow</span>
+              </button>
+              <button
+                onClick={() => setDiagramMode('mermaid')}
+                style={{
+                  padding: '5px 14px',
+                  borderRadius: 'var(--r-full)',
+                  border: 'none',
+                  fontSize: 11,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  background: diagramMode === 'mermaid' ? 'var(--accent)' : 'transparent',
+                  color: diagramMode === 'mermaid' ? '#000' : 'var(--c-text-2)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                <GitBranch size={12} />
+                <span>Mermaid Architecture</span>
               </button>
               <button
                 onClick={() => setDiagramMode('grid')}
                 style={{
-                  padding: '4px 12px',
+                  padding: '5px 14px',
                   borderRadius: 'var(--r-full)',
                   border: 'none',
                   fontSize: 11,
@@ -461,10 +951,14 @@ export default function AdminArchitecturePage() {
                   cursor: 'pointer',
                   background: diagramMode === 'grid' ? 'var(--accent)' : 'transparent',
                   color: diagramMode === 'grid' ? '#000' : 'var(--c-text-2)',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
                   transition: 'all 0.15s ease',
                 }}
               >
-                Service Matrix Grid
+                <Layers size={12} />
+                <span>Service Matrix</span>
               </button>
             </div>
           </div>
@@ -482,22 +976,23 @@ export default function AdminArchitecturePage() {
               fontSize: 12,
             }}
           >
-            <span style={{ fontWeight: 700, color: 'var(--accent)' }}>Active Saga Step {activeStepIndex + 1}/{SAGA_FLOW_STEPS.length}:</span>
+            <span style={{ fontWeight: 700, color: 'var(--accent)' }}>Active Step {activeStepIndex + 1}/{currentScenarioSteps.length}:</span>
             <span style={{ color: 'var(--c-text-1)', fontWeight: 600 }}>{currentStep.action}</span>
           </div>
         </div>
 
-        {/* Dynamic View: Visual Architecture Flow Diagram (SVG) OR Service Cards Grid */}
-        {diagramMode === 'flow' ? (
+        {/* VIEW 1: Modern Lucid Flow Interactive Canvas */}
+        {diagramMode === 'lucid' && (
           <div
             style={{
-              background: 'radial-gradient(ellipse at 50% 20%, rgba(56, 189, 248, 0.08) 0%, rgba(15, 23, 42, 0.6) 80%)',
+              background: 'radial-gradient(ellipse at 50% 20%, rgba(56, 189, 248, 0.08) 0%, rgba(15, 23, 42, 0.75) 85%)',
               border: '1px solid var(--border-subtle)',
               borderRadius: 'var(--radius)',
               padding: '24px 16px',
               marginBottom: 24,
               overflowX: 'auto',
               position: 'relative',
+              boxShadow: 'inset 0 0 40px rgba(0, 0, 0, 0.4)',
             }}
           >
             {/* CSS Animation Keyframes for SVG Packet Pulses */}
@@ -507,49 +1002,49 @@ export default function AdminArchitecturePage() {
                 100% { stroke-dashoffset: 0; }
               }
               @keyframes pulseGlow {
-                0%, 100% { opacity: 0.8; transform: scale(1); }
-                50% { opacity: 1; transform: scale(1.05); }
+                0%, 100% { opacity: 0.85; filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.6)); }
+                50% { opacity: 1; filter: drop-shadow(0 0 16px rgba(56, 189, 248, 0.95)); }
               }
               .pulse-active {
                 animation: pulseGlow 1.8s infinite ease-in-out;
               }
               .flow-path-active {
                 stroke: #38bdf8 !important;
-                stroke-width: 3px !important;
+                stroke-width: 3.5px !important;
                 stroke-dasharray: 6 6 !important;
                 animation: packetFlow 0.8s linear infinite !important;
-                filter: drop-shadow(0 0 6px #38bdf8);
+                filter: drop-shadow(0 0 8px #38bdf8);
               }
               .flow-path-kafka {
                 stroke: #f59e0b !important;
-                stroke-width: 3px !important;
+                stroke-width: 3.5px !important;
                 stroke-dasharray: 6 6 !important;
                 animation: packetFlow 0.8s linear infinite !important;
-                filter: drop-shadow(0 0 6px #f59e0b);
+                filter: drop-shadow(0 0 8px #f59e0b);
               }
             `}</style>
 
-            <svg viewBox="0 0 1060 520" style={{ width: '100%', minWidth: 960, height: 'auto', display: 'block' }}>
+            <svg viewBox="0 0 1120 540" style={{ width: '100%', minWidth: 1000, height: 'auto', display: 'block' }}>
               <defs>
                 <linearGradient id="gradClient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#38bdf8" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#0284c7" stopOpacity="0.9" />
+                  <stop offset="0%" stopColor="#1e293b" stopOpacity="0.95" />
+                  <stop offset="100%" stopColor="#0f172a" stopOpacity="0.98" />
                 </linearGradient>
                 <linearGradient id="gradGateway" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#6366f1" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#4338ca" stopOpacity="0.9" />
+                  <stop offset="0%" stopColor="#312e81" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#1e1b4b" stopOpacity="0.95" />
                 </linearGradient>
                 <linearGradient id="gradKafka" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.8" />
-                  <stop offset="100%" stopColor="#b45309" stopOpacity="0.9" />
+                  <stop offset="0%" stopColor="#78350f" stopOpacity="0.9" />
+                  <stop offset="100%" stopColor="#451a03" stopOpacity="0.95" />
                 </linearGradient>
                 <linearGradient id="gradService" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor="#1e293b" stopOpacity="0.9" />
                   <stop offset="100%" stopColor="#0f172a" stopOpacity="0.95" />
                 </linearGradient>
                 <linearGradient id="gradActiveSvc" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#0284c7" stopOpacity="0.5" />
-                  <stop offset="100%" stopColor="#0f172a" stopOpacity="0.9" />
+                  <stop offset="0%" stopColor="#0369a1" stopOpacity="0.8" />
+                  <stop offset="100%" stopColor="#0f172a" stopOpacity="0.95" />
                 </linearGradient>
 
                 <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
@@ -563,260 +1058,286 @@ export default function AdminArchitecturePage() {
                 </marker>
               </defs>
 
-              {/* Background Tier Lanes */}
-              <rect x="20" y="20" width="160" height="470" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-              <text x="100" y="44" fill="#64748b" fontSize="11" fontWeight="700" textAnchor="middle" letterSpacing="0.08em">TIER 1: CLIENTS</text>
+              {/* LucidFlow Background Tier Containers */}
+              {/* Tier 1: Clients */}
+              <rect x="20" y="20" width="160" height="490" rx="12" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" strokeDasharray="4 4" />
+              <text x="100" y="46" fill="#94a3b8" fontSize="11" fontWeight="800" textAnchor="middle" letterSpacing="0.08em">TIER 1: CLIENTS</text>
 
-              <rect x="210" y="20" width="160" height="470" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-              <text x="290" y="44" fill="#64748b" fontSize="11" fontWeight="700" textAnchor="middle" letterSpacing="0.08em">TIER 2: EDGE INGRESS</text>
+              {/* Tier 2: Edge Gateway */}
+              <rect x="210" y="20" width="170" height="490" rx="12" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" strokeDasharray="4 4" />
+              <text x="295" y="46" fill="#818cf8" fontSize="11" fontWeight="800" textAnchor="middle" letterSpacing="0.08em">TIER 2: EDGE INGRESS</text>
 
-              <rect x="400" y="20" width="410" height="470" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-              <text x="605" y="44" fill="#64748b" fontSize="11" fontWeight="700" textAnchor="middle" letterSpacing="0.08em">TIER 3: CORE DOMAIN SERVICES (PORTS 8081-8087)</text>
+              {/* Tier 3: Core Domain Services */}
+              <rect x="410" y="20" width="460" height="490" rx="12" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" strokeDasharray="4 4" />
+              <text x="640" y="46" fill="#38bdf8" fontSize="11" fontWeight="800" textAnchor="middle" letterSpacing="0.08em">TIER 3: CORE SERVICES (PORTS 8081-8087)</text>
 
-              <rect x="840" y="20" width="200" height="470" rx="10" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.06)" strokeDasharray="4 4" />
-              <text x="940" y="44" fill="#64748b" fontSize="11" fontWeight="700" textAnchor="middle" letterSpacing="0.08em">TIER 4: EVENT & DATA MESH</text>
+              {/* Tier 4: Event & Data Mesh */}
+              <rect x="895" y="20" width="205" height="490" rx="12" fill="rgba(255,255,255,0.02)" stroke="rgba(255,255,255,0.08)" strokeDasharray="4 4" />
+              <text x="997" y="46" fill="#fbbf24" fontSize="11" fontWeight="800" textAnchor="middle" letterSpacing="0.08em">TIER 4: DATA & EVENT MESH</text>
 
               {/* CLIENT NODES */}
-              {/* React Web App Node */}
-              <g transform="translate(35, 110)">
-                <rect width="130" height="65" rx="8" fill="url(#gradService)" stroke="#38bdf8" strokeWidth="1.5" />
-                <text x="65" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">React Storefront</text>
-                <text x="65" y="44" fill="#94a3b8" fontSize="10" textAnchor="middle">Port 3000 • Lumé UI</text>
-                <circle cx="20" cy="20" r="4" fill="#38bdf8" />
+              <g transform="translate(35, 120)">
+                <rect width="130" height="68" rx="8" fill="url(#gradClient)" stroke="#38bdf8" strokeWidth="1.5" />
+                <text x="65" y="28" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">React Storefront</text>
+                <text x="65" y="46" fill="#94a3b8" fontSize="10" textAnchor="middle">:3000 • Lumé UI</text>
+                <circle cx="20" cy="22" r="4" fill="#38bdf8" />
               </g>
 
-              {/* Admin Dashboard Node */}
-              <g transform="translate(35, 270)">
-                <rect width="130" height="65" rx="8" fill="url(#gradService)" stroke="#a855f7" strokeWidth="1.5" />
-                <text x="65" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Admin Console</text>
-                <text x="65" y="44" fill="#94a3b8" fontSize="10" textAnchor="middle">Port 3001 • Windows Aero</text>
-                <circle cx="20" cy="20" r="4" fill="#a855f7" />
+              <g transform="translate(35, 290)">
+                <rect width="130" height="68" rx="8" fill="url(#gradClient)" stroke="#a855f7" strokeWidth="1.5" />
+                <text x="65" y="28" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Admin Console</text>
+                <text x="65" y="46" fill="#94a3b8" fontSize="10" textAnchor="middle">:3001 • Aero Glass</text>
+                <circle cx="20" cy="22" r="4" fill="#a855f7" />
               </g>
 
               {/* EDGE GATEWAY NODE */}
               <g
-                transform="translate(225, 170)"
+                transform="translate(225, 175)"
                 onClick={() => setSelectedServiceId('api-gateway')}
                 style={{ cursor: 'pointer' }}
-                className={selectedServiceId === 'api-gateway' || currentStep.from === 'api-gateway' ? 'pulse-active' : ''}
+                className={selectedServiceId === 'api-gateway' || currentStep.from === 'api-gateway' || currentStep.to === 'api-gateway' ? 'pulse-active' : ''}
               >
                 <rect
-                  width="130"
-                  height="120"
+                  width="140"
+                  height="135"
                   rx="10"
                   fill={selectedServiceId === 'api-gateway' ? 'url(#gradActiveSvc)' : 'url(#gradGateway)'}
-                  stroke={currentStep.from === 'api-gateway' ? '#38bdf8' : '#818cf8'}
-                  strokeWidth={currentStep.from === 'api-gateway' ? 2.5 : 1.5}
+                  stroke={currentStep.from === 'api-gateway' || currentStep.to === 'api-gateway' ? '#38bdf8' : '#818cf8'}
+                  strokeWidth={currentStep.from === 'api-gateway' || currentStep.to === 'api-gateway' ? 2.5 : 1.5}
                 />
-                <text x="65" y="28" fill="#fff" fontSize="13" fontWeight="800" textAnchor="middle">API Gateway</text>
-                <text x="65" y="46" fill="#e0e7ff" fontSize="10" fontWeight="600" textAnchor="middle">Port 8080 (Netty)</text>
-                <text x="65" y="68" fill="#cbd5e1" fontSize="9" textAnchor="middle">• JWT Claim Filter</text>
-                <text x="65" y="82" fill="#cbd5e1" fontSize="9" textAnchor="middle">• Redis Rate Limiter</text>
-                <text x="65" y="96" fill="#cbd5e1" fontSize="9" textAnchor="middle">• Reverse Proxy Router</text>
+                <text x="70" y="28" fill="#fff" fontSize="13" fontWeight="800" textAnchor="middle">API Gateway</text>
+                <text x="70" y="46" fill="#c7d2fe" fontSize="10" fontWeight="700" textAnchor="middle">Port 8080 (Netty)</text>
+                <text x="70" y="70" fill="#cbd5e1" fontSize="9" textAnchor="middle">• JWT Claim Filter</text>
+                <text x="70" y="86" fill="#cbd5e1" fontSize="9" textAnchor="middle">• Redis Rate Limiter</text>
+                <text x="70" y="102" fill="#cbd5e1" fontSize="9" textAnchor="middle">• Reverse Proxy Router</text>
+                <circle cx="20" cy="22" r="5" fill="#818cf8" />
               </g>
 
-              {/* DOMAIN SERVICES NODES */}
-              {/* Row 1: User & Catalog */}
-              <g transform="translate(420, 70)" onClick={() => setSelectedServiceId('user-service')} style={{ cursor: 'pointer' }}>
-                <rect width="170" height="60" rx="8" fill={selectedServiceId === 'user-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'} stroke={selectedServiceId === 'user-service' ? '#38bdf8' : '#334155'} strokeWidth="1.5" />
-                <text x="85" y="24" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">User Service (8081)</text>
-                <text x="85" y="42" fill="#94a3b8" fontSize="10" textAnchor="middle">Auth, Argon2, JWT • user_db</text>
+              {/* DOMAIN SERVICES NODES - Clean 2-Column Grid */}
+              {/* Col 1, Row 1: User Service */}
+              <g transform="translate(425, 75)" onClick={() => setSelectedServiceId('user-service')} style={{ cursor: 'pointer' }}>
+                <rect width="190" height="68" rx="8" fill={selectedServiceId === 'user-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'} stroke={selectedServiceId === 'user-service' ? '#38bdf8' : '#334155'} strokeWidth="1.5" />
+                <text x="95" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">User Service (8081)</text>
+                <text x="95" y="44" fill="#94a3b8" fontSize="10" textAnchor="middle">Auth, Argon2, JWT • user_db</text>
               </g>
 
-              <g transform="translate(620, 70)" onClick={() => setSelectedServiceId('catalog-service')} style={{ cursor: 'pointer' }}>
-                <rect width="170" height="60" rx="8" fill={selectedServiceId === 'catalog-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'} stroke={selectedServiceId === 'catalog-service' ? '#38bdf8' : '#334155'} strokeWidth="1.5" />
-                <text x="85" y="24" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Catalog Service (8082)</text>
-                <text x="85" y="42" fill="#94a3b8" fontSize="10" textAnchor="middle">Products, Cache-Aside • catalog_db</text>
-              </g>
-
-              {/* Row 2: Cart & Order Orchestrator */}
-              <g transform="translate(420, 160)" onClick={() => setSelectedServiceId('cart-service')} style={{ cursor: 'pointer' }}>
-                <rect width="170" height="60" rx="8" fill={selectedServiceId === 'cart-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'} stroke={selectedServiceId === 'cart-service' ? '#38bdf8' : '#334155'} strokeWidth="1.5" />
-                <text x="85" y="24" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Cart Service (8083)</text>
-                <text x="85" y="42" fill="#94a3b8" fontSize="10" textAnchor="middle">Redis Ephemeral Session Basket</text>
-              </g>
-
+              {/* Col 2, Row 1: Catalog Service */}
               <g
-                transform="translate(620, 150)"
+                transform="translate(660, 75)"
+                onClick={() => setSelectedServiceId('catalog-service')}
+                style={{ cursor: 'pointer' }}
+                className={selectedServiceId === 'catalog-service' || currentStep.from === 'catalog-service' || currentStep.to === 'catalog-service' ? 'pulse-active' : ''}
+              >
+                <rect
+                  width="190"
+                  height="68"
+                  rx="8"
+                  fill={selectedServiceId === 'catalog-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'}
+                  stroke={currentStep.from === 'catalog-service' || currentStep.to === 'catalog-service' ? '#38bdf8' : '#334155'}
+                  strokeWidth="1.5"
+                />
+                <text x="95" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Catalog Service (8082)</text>
+                <text x="95" y="44" fill="#38bdf8" fontSize="10" fontWeight="600" textAnchor="middle">Sub-50ms Redis Cache-Aside</text>
+              </g>
+
+              {/* Col 1, Row 2: Cart Service */}
+              <g transform="translate(425, 175)" onClick={() => setSelectedServiceId('cart-service')} style={{ cursor: 'pointer' }}>
+                <rect width="190" height="68" rx="8" fill={selectedServiceId === 'cart-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'} stroke={selectedServiceId === 'cart-service' ? '#38bdf8' : '#334155'} strokeWidth="1.5" />
+                <text x="95" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Cart Service (8083)</text>
+                <text x="95" y="44" fill="#94a3b8" fontSize="10" textAnchor="middle">Redis Ephemeral Session Basket</text>
+              </g>
+
+              {/* Col 2, Row 2: Order Orchestrator */}
+              <g
+                transform="translate(660, 165)"
                 onClick={() => setSelectedServiceId('order-service')}
                 style={{ cursor: 'pointer' }}
                 className={selectedServiceId === 'order-service' || currentStep.from === 'order-service' || currentStep.to === 'order-service' ? 'pulse-active' : ''}
               >
                 <rect
-                  width="170"
-                  height="80"
+                  width="190"
+                  height="85"
                   rx="8"
                   fill={selectedServiceId === 'order-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'}
                   stroke={currentStep.from === 'order-service' || currentStep.to === 'order-service' ? '#38bdf8' : '#38bdf8'}
                   strokeWidth="2"
                 />
-                <text x="85" y="26" fill="#38bdf8" fontSize="13" fontWeight="800" textAnchor="middle">Order Service (8084)</text>
-                <text x="85" y="44" fill="#f8fafc" fontSize="10" fontWeight="700" textAnchor="middle">Saga Orchestrator + Outbox</text>
-                <text x="85" y="62" fill="#94a3b8" fontSize="9" textAnchor="middle">order_db (Idempotent Checkout)</text>
+                <text x="95" y="26" fill="#38bdf8" fontSize="13" fontWeight="800" textAnchor="middle">Order Service (8084)</text>
+                <text x="95" y="46" fill="#f8fafc" fontSize="10" fontWeight="700" textAnchor="middle">Saga Orchestrator + Outbox</text>
+                <text x="95" y="64" fill="#94a3b8" fontSize="9" textAnchor="middle">order_db (Idempotent Checkout)</text>
               </g>
 
-              {/* Row 3: Inventory & Payment */}
+              {/* Col 1, Row 3: Inventory Service */}
               <g
-                transform="translate(420, 260)"
+                transform="translate(425, 275)"
                 onClick={() => setSelectedServiceId('inventory-service')}
                 style={{ cursor: 'pointer' }}
                 className={selectedServiceId === 'inventory-service' || currentStep.from === 'inventory-service' || currentStep.to === 'inventory-service' ? 'pulse-active' : ''}
               >
                 <rect
-                  width="170"
-                  height="75"
+                  width="190"
+                  height="80"
                   rx="8"
                   fill={selectedServiceId === 'inventory-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'}
                   stroke={currentStep.from === 'inventory-service' || currentStep.to === 'inventory-service' ? '#f59e0b' : '#334155'}
                   strokeWidth="1.5"
                 />
-                <text x="85" y="24" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Inventory Service (8085)</text>
-                <text x="85" y="42" fill="#f59e0b" fontSize="10" fontWeight="600" textAnchor="middle">Pessimistic Locks (No-Oversell)</text>
-                <text x="85" y="58" fill="#94a3b8" fontSize="9" textAnchor="middle">inventory_db • Atomic Reserve</text>
+                <text x="95" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Inventory Service (8085)</text>
+                <text x="95" y="44" fill="#f59e0b" fontSize="10" fontWeight="600" textAnchor="middle">Pessimistic DB Locks</text>
+                <text x="95" y="62" fill="#94a3b8" fontSize="9" textAnchor="middle">Zero-Overselling • inventory_db</text>
               </g>
 
+              {/* Col 2, Row 3: Payment Service */}
               <g
-                transform="translate(620, 260)"
+                transform="translate(660, 275)"
                 onClick={() => setSelectedServiceId('payment-service')}
                 style={{ cursor: 'pointer' }}
                 className={selectedServiceId === 'payment-service' || currentStep.from === 'payment-service' || currentStep.to === 'payment-service' ? 'pulse-active' : ''}
               >
                 <rect
-                  width="170"
-                  height="75"
+                  width="190"
+                  height="80"
                   rx="8"
                   fill={selectedServiceId === 'payment-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'}
-                  stroke={currentStep.from === 'payment-service' || currentStep.to === 'payment-service' ? '#f59e0b' : '#334155'}
+                  stroke={currentStep.from === 'payment-service' || currentStep.to === 'payment-service' ? '#10b981' : '#334155'}
                   strokeWidth="1.5"
                 />
-                <text x="85" y="24" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Payment Service (8086)</text>
-                <text x="85" y="42" fill="#10b981" fontSize="10" fontWeight="600" textAnchor="middle">Financial Ledger & Settlement</text>
-                <text x="85" y="58" fill="#94a3b8" fontSize="9" textAnchor="middle">payment_db • Compensation</text>
+                <text x="95" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Payment Service (8086)</text>
+                <text x="95" y="44" fill="#10b981" fontSize="10" fontWeight="600" textAnchor="middle">Financial Ledger & Settlement</text>
+                <text x="95" y="62" fill="#94a3b8" fontSize="9" textAnchor="middle">payment_db • Compensation</text>
               </g>
 
-              {/* Row 4: Notification Service */}
+              {/* Row 4 (Centered Span): Notification Service */}
               <g
-                transform="translate(520, 370)"
+                transform="translate(545, 385)"
                 onClick={() => setSelectedServiceId('notification-service')}
                 style={{ cursor: 'pointer' }}
                 className={selectedServiceId === 'notification-service' || currentStep.to === 'notification-service' ? 'pulse-active' : ''}
               >
                 <rect
-                  width="180"
-                  height="65"
+                  width="190"
+                  height="68"
                   rx="8"
                   fill={selectedServiceId === 'notification-service' ? 'url(#gradActiveSvc)' : 'url(#gradService)'}
                   stroke={currentStep.to === 'notification-service' ? '#10b981' : '#334155'}
                   strokeWidth="1.5"
                 />
-                <text x="90" y="24" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Notification Service (8087)</text>
-                <text x="90" y="42" fill="#94a3b8" fontSize="10" textAnchor="middle">Async Emails & WebSocket Push</text>
-                <text x="90" y="56" fill="#64748b" fontSize="9" textAnchor="middle">notification_db</text>
+                <text x="95" y="26" fill="#f8fafc" fontSize="12" fontWeight="700" textAnchor="middle">Notification Service (8087)</text>
+                <text x="95" y="44" fill="#94a3b8" fontSize="10" textAnchor="middle">Emails & WebSocket Push • notification_db</text>
               </g>
 
               {/* TIER 4: KAFKA & STORAGE MESH */}
               {/* Apache Kafka KRaft Event Bus */}
-              <g transform="translate(860, 90)">
-                <rect width="160" height="190" rx="10" fill="url(#gradKafka)" stroke="#fbbf24" strokeWidth="2" />
-                <text x="80" y="30" fill="#fff" fontSize="13" fontWeight="900" textAnchor="middle">Apache Kafka (KRaft)</text>
-                <text x="80" y="48" fill="#fef3c7" fontSize="10" fontWeight="600" textAnchor="middle">Port 29092 • Event Bus</text>
+              <g transform="translate(910, 85)">
+                <rect width="175" height="205" rx="10" fill="url(#gradKafka)" stroke="#fbbf24" strokeWidth="2" />
+                <text x="87" y="28" fill="#fff" fontSize="13" fontWeight="900" textAnchor="middle">Apache Kafka (KRaft)</text>
+                <text x="87" y="46" fill="#fef3c7" fontSize="10" fontWeight="600" textAnchor="middle">Port 29092 • Event Bus</text>
 
-                <rect x="15" y="60" width="130" height="22" rx="4" fill="rgba(0,0,0,0.3)" />
-                <text x="80" y="75" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">order.created (3p)</text>
+                <rect x="15" y="58" width="145" height="24" rx="4" fill="rgba(0,0,0,0.3)" />
+                <text x="87" y="74" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">order.created (3p)</text>
 
-                <rect x="15" y="88" width="130" height="22" rx="4" fill="rgba(0,0,0,0.3)" />
-                <text x="80" y="103" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">inventory.reserved (3p)</text>
+                <rect x="15" y="88" width="145" height="24" rx="4" fill="rgba(0,0,0,0.3)" />
+                <text x="87" y="104" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">inventory.reserved (3p)</text>
 
-                <rect x="15" y="116" width="130" height="22" rx="4" fill="rgba(0,0,0,0.3)" />
-                <text x="80" y="131" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">payment.completed (3p)</text>
+                <rect x="15" y="118" width="145" height="24" rx="4" fill="rgba(0,0,0,0.3)" />
+                <text x="87" y="134" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">payment.completed (3p)</text>
 
-                <rect x="15" y="144" width="130" height="22" rx="4" fill="rgba(0,0,0,0.3)" />
-                <text x="80" y="159" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">order.shipped (3p)</text>
+                <rect x="15" y="148" width="145" height="24" rx="4" fill="rgba(0,0,0,0.3)" />
+                <text x="87" y="164" fill="#fde68a" fontSize="9" fontWeight="700" textAnchor="middle">order.shipped (3p)</text>
               </g>
 
               {/* Multi-Database PostgreSQL & Redis */}
-              <g transform="translate(860, 310)">
-                <rect width="160" height="150" rx="10" fill="url(#gradService)" stroke="#38bdf8" strokeWidth="1.5" />
-                <text x="80" y="28" fill="#38bdf8" fontSize="12" fontWeight="800" textAnchor="middle">Databases & Cache</text>
-                <text x="80" y="46" fill="#94a3b8" fontSize="9" textAnchor="middle">6 Isolated Postgres DBs (5433)</text>
-                <text x="80" y="60" fill="#94a3b8" fontSize="9" textAnchor="middle">Redis In-Memory Tier (6379)</text>
+              <g transform="translate(910, 310)">
+                <rect width="175" height="155" rx="10" fill="url(#gradService)" stroke="#38bdf8" strokeWidth="1.5" />
+                <text x="87" y="28" fill="#38bdf8" fontSize="12" fontWeight="800" textAnchor="middle">Storage & Cache Mesh</text>
+                <text x="87" y="46" fill="#94a3b8" fontSize="9" textAnchor="middle">6 Isolated Postgres DBs (:5433)</text>
+                <text x="87" y="60" fill="#94a3b8" fontSize="9" textAnchor="middle">Redis In-Memory Tier (:6379)</text>
 
-                <rect x="15" y="75" width="130" height="28" rx="4" fill="rgba(56, 189, 248, 0.12)" stroke="rgba(56, 189, 248, 0.3)" />
-                <text x="80" y="93" fill="#38bdf8" fontSize="10" fontWeight="700" textAnchor="middle">ACID Transaction Outbox</text>
+                <rect x="15" y="75" width="145" height="30" rx="4" fill="rgba(56, 189, 248, 0.12)" stroke="rgba(56, 189, 248, 0.3)" />
+                <text x="87" y="94" fill="#38bdf8" fontSize="10" fontWeight="700" textAnchor="middle">ACID Transaction Outbox</text>
 
-                <rect x="15" y="110" width="130" height="28" rx="4" fill="rgba(16, 185, 129, 0.12)" stroke="rgba(16, 185, 129, 0.3)" />
-                <text x="80" y="128" fill="#10b981" fontSize="10" fontWeight="700" textAnchor="middle">Zero-Oversell DB Locks</text>
+                <rect x="15" y="114" width="145" height="30" rx="4" fill="rgba(16, 185, 129, 0.12)" stroke="rgba(16, 185, 129, 0.3)" />
+                <text x="87" y="133" fill="#10b981" fontSize="10" fontWeight="700" textAnchor="middle">Zero-Oversell Locks</text>
               </g>
 
               {/* CONNECTING ARROWS & ANIMATED FLOW PATHS */}
               {/* Clients -> Gateway */}
-              <path d="M 165 142 L 225 210" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
-              <path d="M 165 300 L 225 240" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
+              <path d="M 165 154 L 225 210" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
+              <path d="M 165 324 L 225 260" stroke="#64748b" strokeWidth="1.5" markerEnd="url(#arrow)" />
 
-              {/* Gateway -> Order Service (Step 1) */}
+              {/* Gateway -> Order Service */}
               <path
-                d="M 355 230 L 620 190"
+                d="M 365 240 L 660 210"
                 stroke="#64748b"
                 strokeWidth="1.5"
-                className={activeStepIndex === 0 ? 'flow-path-active' : ''}
-                markerEnd={activeStepIndex === 0 ? 'url(#arrow-active)' : 'url(#arrow)'}
+                className={activeStepIndex === 0 && selectedScenarioKey.includes('saga') ? 'flow-path-active' : ''}
+                markerEnd={activeStepIndex === 0 && selectedScenarioKey.includes('saga') ? 'url(#arrow-active)' : 'url(#arrow)'}
               />
 
-              {/* Order Service -> Kafka (Step 3: order.created) */}
+              {/* Gateway -> Catalog Service (Read Path) */}
               <path
-                d="M 790 180 L 860 140"
+                d="M 365 210 L 660 115"
                 stroke="#64748b"
                 strokeWidth="1.5"
-                className={activeStepIndex === 2 ? 'flow-path-kafka' : ''}
-                markerEnd={activeStepIndex === 2 ? 'url(#arrow-kafka)' : 'url(#arrow)'}
+                className={selectedScenarioKey === 'catalog_browsing' ? 'flow-path-active' : ''}
+                markerEnd={selectedScenarioKey === 'catalog_browsing' ? 'url(#arrow-active)' : 'url(#arrow)'}
               />
 
-              {/* Kafka -> Inventory Service (Step 3 to 4) */}
+              {/* Order Service -> Kafka (order.created) */}
               <path
-                d="M 860 170 C 800 240, 680 300, 590 300"
+                d="M 850 200 L 910 145"
+                stroke="#64748b"
+                strokeWidth="1.5"
+                className={currentStep.action.includes('order.created') ? 'flow-path-kafka' : ''}
+                markerEnd={currentStep.action.includes('order.created') ? 'url(#arrow-kafka)' : 'url(#arrow)'}
+              />
+
+              {/* Kafka -> Inventory Service */}
+              <path
+                d="M 910 170 C 840 230, 720 280, 615 310"
                 fill="none"
                 stroke="#64748b"
                 strokeWidth="1.5"
-                className={activeStepIndex === 3 ? 'flow-path-kafka' : ''}
-                markerEnd={activeStepIndex === 3 ? 'url(#arrow-kafka)' : 'url(#arrow)'}
+                className={currentStep.from === 'inventory-service' && currentStep.action.includes('SELECT') ? 'flow-path-kafka' : ''}
+                markerEnd="url(#arrow-kafka)"
               />
 
-              {/* Inventory Service -> Kafka (Step 5: inventory.reserved) */}
+              {/* Inventory Service -> Kafka (inventory.reserved / failure) */}
               <path
-                d="M 590 310 C 700 320, 800 270, 860 200"
+                d="M 615 320 C 730 330, 830 270, 910 200"
                 fill="none"
                 stroke="#64748b"
                 strokeWidth="1.5"
-                className={activeStepIndex === 4 ? 'flow-path-kafka' : ''}
-                markerEnd={activeStepIndex === 4 ? 'url(#arrow-kafka)' : 'url(#arrow)'}
+                className={currentStep.action.includes('inventory.reserved') || currentStep.action.includes('reservation_failed') ? 'flow-path-kafka' : ''}
+                markerEnd={currentStep.action.includes('inventory.reserved') || currentStep.action.includes('reservation_failed') ? 'url(#arrow-kafka)' : 'url(#arrow)'}
               />
 
-              {/* Kafka -> Payment Service (Step 5) */}
+              {/* Kafka -> Payment Service */}
               <path
-                d="M 860 220 L 790 280"
+                d="M 910 220 L 850 295"
                 stroke="#64748b"
                 strokeWidth="1.5"
-                className={activeStepIndex === 4 ? 'flow-path-kafka' : ''}
-                markerEnd={activeStepIndex === 4 ? 'url(#arrow-kafka)' : 'url(#arrow)'}
+                className={currentStep.action.includes('payment') ? 'flow-path-kafka' : ''}
+                markerEnd={currentStep.action.includes('payment') ? 'url(#arrow-kafka)' : 'url(#arrow)'}
               />
 
-              {/* Payment Service -> Kafka -> Order Service (Step 6: payment.completed) */}
+              {/* Payment Service -> Kafka (payment.completed / failed) */}
               <path
-                d="M 790 300 C 840 300, 870 260, 870 240 C 870 220, 840 210, 790 200"
+                d="M 850 320 C 900 320, 930 280, 930 250 C 930 230, 900 220, 850 210"
                 fill="none"
                 stroke="#64748b"
                 strokeWidth="1.5"
-                className={activeStepIndex === 5 ? 'flow-path-kafka' : ''}
-                markerEnd={activeStepIndex === 5 ? 'url(#arrow-kafka)' : 'url(#arrow)'}
+                className={currentStep.action.includes('payment.completed') || currentStep.action.includes('payment.failed') ? 'flow-path-kafka' : ''}
+                markerEnd="url(#arrow-kafka)"
               />
 
-              {/* Order Service -> Notification Service (Step 7: order.confirmed) */}
+              {/* Order Service -> Notification Service */}
               <path
-                d="M 690 230 L 630 370"
+                d="M 755 250 L 660 385"
                 stroke="#64748b"
                 strokeWidth="1.5"
-                className={activeStepIndex === 6 ? 'flow-path-active' : ''}
-                markerEnd={activeStepIndex === 6 ? 'url(#arrow-active)' : 'url(#arrow)'}
+                className={currentStep.to === 'notification-service' ? 'flow-path-active' : ''}
+                markerEnd={currentStep.to === 'notification-service' ? 'url(#arrow-active)' : 'url(#arrow)'}
               />
             </svg>
 
@@ -824,20 +1345,68 @@ export default function AdminArchitecturePage() {
             <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--border-subtle)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, fontSize: 11, color: 'var(--c-text-3)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 3, background: '#38bdf8' }} /> Synchronous HTTP / REST Flow
+                  <span style={{ width: 14, height: 3, background: '#38bdf8' }} /> Synchronous HTTP / REST Flow
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 12, height: 3, background: '#f59e0b' }} /> Asynchronous Kafka Event Stream
+                  <span style={{ width: 14, height: 3, background: '#f59e0b' }} /> Asynchronous Kafka Event Stream
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--accent)' }} /> Active Saga Pulse
                 </span>
               </div>
-              <span>Click on any microservice box in the diagram to inspect its isolated DB and technology stack.</span>
+              <span>Click on any microservice box in the diagram to inspect its isolated DB, port, and technology stack.</span>
             </div>
           </div>
-        ) : (
-          /* Live Service Card Grid */
+        )}
+
+        {/* VIEW 2: Official Mermaid.js Architecture Graph */}
+        {diagramMode === 'mermaid' && (
+          <div
+            style={{
+              background: '#090d16',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius)',
+              padding: '24px 20px',
+              marginBottom: 24,
+              overflowX: 'auto',
+              minHeight: 460,
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+            }}
+          >
+            {mermaidRenderError ? (
+              <div style={{ padding: 24, textAlign: 'center', color: 'var(--danger)' }}>
+                <AlertCircle size={28} style={{ margin: '0 auto 12px' }} />
+                <div>Mermaid Diagram Compilation Notice</div>
+                <div style={{ fontSize: 12, color: 'var(--c-text-2)', marginTop: 4 }}>{mermaidRenderError}</div>
+              </div>
+            ) : mermaidSvg ? (
+              <div
+                dangerouslySetInnerHTML={{ __html: mermaidSvg }}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'center',
+                  alignItems: 'center',
+                  width: '100%',
+                }}
+              />
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, color: 'var(--accent)' }}>
+                <RefreshCw size={18} className="animate-spin" />
+                <span>Compiling Mermaid Graph...</span>
+              </div>
+            )}
+
+            <div style={{ marginTop: 18, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 11, color: 'var(--c-text-3)' }}>
+              <span>Generated via Mermaid.js 11 • Live flowchart syntax synchronized with active scenario preset</span>
+              <span style={{ color: 'var(--accent)' }}>Active Preset: {activeScenario.title}</span>
+            </div>
+          </div>
+        )}
+
+        {/* VIEW 3: Live Service Card Grid */}
+        {diagramMode === 'grid' && (
           <div
             style={{
               display: 'grid',
@@ -956,7 +1525,7 @@ export default function AdminArchitecturePage() {
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, overflowX: 'auto', paddingBottom: 6 }}>
-            {SAGA_FLOW_STEPS.map((step, idx) => {
+            {currentScenarioSteps.map((step, idx) => {
               const isCurrent = activeStepIndex === idx;
               const isPast = activeStepIndex > idx;
 
@@ -989,7 +1558,7 @@ export default function AdminArchitecturePage() {
                     <span>{step.action}</span>
                     {isPast && <CheckCircle2 size={13} />}
                   </div>
-                  {idx < SAGA_FLOW_STEPS.length - 1 && (
+                  {idx < currentScenarioSteps.length - 1 && (
                     <ArrowRight size={14} style={{ color: isPast ? 'var(--success)' : 'var(--border)', flexShrink: 0 }} />
                   )}
                 </React.Fragment>

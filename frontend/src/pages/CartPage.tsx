@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { useCart } from '../context/AppContext';
+import { useCart, useToast } from '../context/AppContext';
 import { giftCardService, GiftCard } from '../services/giftCardService';
 import { Trash2, Lock, RotateCcw, Truck, ShoppingBag, Minus, Plus, ArrowRight, Gift, Check, X } from 'lucide-react';
 
 export default function CartPage() {
   const { cart, itemCount, subtotal, updateQty, removeItem } = useCart();
+  const { showToast } = useToast();
   const [promoCode, setPromoCode] = useState('');
   const [appliedCard, setAppliedCard] = useState<GiftCard | null>(null);
   const [promoDiscount, setPromoDiscount] = useState<number>(0);
@@ -125,7 +126,10 @@ export default function CartPage() {
 
                     <button 
                       style={styles.removeBtn} 
-                      onClick={() => removeItem(item.productId)}
+                      onClick={() => {
+                        removeItem(item.productId);
+                        showToast(`Removed "${item.name}" from your bag.`, 'info', 'Item Removed');
+                      }}
                       aria-label="Remove item"
                     >
                       <Trash2 size={16} />

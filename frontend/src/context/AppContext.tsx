@@ -16,7 +16,7 @@ interface CartContextType {
   cart: Cart | null;
   itemCount: number;
   subtotal: number;
-  addItem: (product: { id: string; sku: string; name: string; price: number; images?: string[] }, qty?: number) => Promise<void>;
+  addItem: (product: { id: string; sku?: string; name: string; price: number; images?: string[] }, qty?: number) => Promise<void>;
   updateQty: (productId: string, qty: number) => Promise<void>;
   removeItem: (productId: string) => Promise<void>;
   clearCart: () => Promise<void>;
@@ -38,10 +38,24 @@ interface ThemeContextType {
   toggleTheme: () => void;
 }
 
+export interface ToastMessage {
+  id: string;
+  type: 'success' | 'info' | 'error';
+  title?: string;
+  message: string;
+}
+
+interface ToastContextType {
+  toasts: ToastMessage[];
+  showToast: (message: string, type?: 'success' | 'info' | 'error', title?: string) => void;
+  removeToast: (id: string) => void;
+}
+
 const AuthContext = createContext<AuthContextType>(null!);
 const CartContext = createContext<CartContextType>(null!);
 const WishlistContext = createContext<WishlistContextType>(null!);
 const ThemeContext = createContext<ThemeContextType>(null!);
+const ToastContext = createContext<ToastContextType>(null!);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -396,7 +410,110 @@ export function WishlistProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+export function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const removeToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const showToast = useCallback((message: string, type: 'success' | 'info' | 'error' = 'success', title?: string) => {
+    const id = Math.random().toString(36).substring(2, 9);
+    setToasts(prev => [...prev.slice(-3), { id, message, type, title }]);
+    setTimeout(() => {
+      removeToast(id);
+    }, 3500);
+  }, [removeToast]);
+
+  return (
+    <ToastContext.Provider value={{ toasts, showToast, removeToast }}>
+      {children}
+      {/* Toast Notification Container */}
+      <div 
+        style={{
+          position: 'fixed',
+          bottom: 'calc(80px + env(safe-area-inset-bottom))',
+          right: 24,
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 10,
+          pointerEvents: 'none',
+          maxWidth: 380,
+          width: 'calc(100vw - 32px)',
+        }}
+        aria-live="polite"
+      >
+        {toasts.map(t => (
+          <div
+            key={t.id}
+            style={{
+              pointerEvents: 'auto',
+              padding: '12px 16px',
+              borderRadius: 'var(--r-md)',
+              background: 'var(--glass-bg)',
+              backdropFilter: 'var(--glass-blur)',
+              WebkitBackdropFilter: 'var(--glass-blur)',
+              border: `1px solid ${
+                t.type === 'success' 
+                  ? 'rgba(16, 185, 129, 0.4)' 
+                  : t.type === 'error' 
+                  ? 'rgba(239, 68, 68, 0.4)' 
+                  : 'var(--glass-border)'
+              }`,
+              boxShadow: 'var(--glass-shadow), 0 10px 25px -5px rgba(0,0,0,0.2)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: 12,
+              animation: 'slideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div 
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: t.type === 'success' ? 'var(--c-success)' : t.type === 'error' ? 'var(--c-error)' : 'var(--c-accent-2)',
+                  flexShrink: 0,
+                }} 
+              />
+              <div>
+                {t.title && (
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    {t.title}
+                  </div>
+                )}
+                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--c-text-1)' }}>
+                  {t.message}
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={() => removeToast(t.id)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--c-text-3)',
+                cursor: 'pointer',
+                padding: 4,
+                display: 'flex',
+                alignItems: 'center',
+              }}
+              aria-label="Close notification"
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
 export const useAuth = () => useContext(AuthContext);
 export const useCart = () => useContext(CartContext);
 export const useWishlist = () => useContext(WishlistContext);
 export const useTheme = () => useContext(ThemeContext);
+export const useToast = () => useContext(ToastContext);

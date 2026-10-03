@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth, useCart } from '../context/AppContext';
+import { useAuth, useCart, useToast } from '../context/AppContext';
 import { orderApi } from '../services/api';
 import { giftCardService, GiftCard } from '../services/giftCardService';
 import { CheckCircle2, AlertCircle, Gift, Sparkles, Check, X } from 'lucide-react';
@@ -8,6 +8,7 @@ import { CheckCircle2, AlertCircle, Gift, Sparkles, Check, X } from 'lucide-reac
 export default function CheckoutPage() {
   const { user } = useAuth();
   const { cart, itemCount, subtotal, clearCart } = useCart();
+  const { showToast } = useToast();
   const navigate = useNavigate();
 
   const [address, setAddress] = useState('742 Evergreen Terrace, Springfield, OR 97477');
@@ -103,11 +104,15 @@ export default function CheckoutPage() {
         giftCardService.redeemCard(appliedGiftCard.code, giftCardDiscount);
       }
 
-      setPlacedOrderId(response.data?.id || response.data?.orderNumber || 'ORD-' + Date.now());
+      const finalId = response.data?.id || response.data?.orderNumber || 'ORD-' + Date.now();
+      setPlacedOrderId(finalId);
       setSuccess(true);
       clearCart();
+      showToast('Your order has been confirmed and submitted to dispatch.', 'success', 'Order Confirmed');
     } catch (err: any) {
-      setError(err.message || 'Checkout failed. Please try again.');
+      const errMsg = err.message || 'Checkout failed. Please try again.';
+      setError(errMsg);
+      showToast(errMsg, 'error', 'Checkout Error');
     } finally {
       setLoading(false);
     }

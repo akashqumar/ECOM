@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AppContext';
+import { useAuth, useToast } from '../context/AppContext';
 import { orderApi } from '../services/api';
 import { Order } from '../types';
 import { ShoppingBag, ChevronDown, ChevronUp, Package, Truck, CheckCircle2, Check, Clock, XCircle } from 'lucide-react';
@@ -9,6 +9,7 @@ type Tab = 'ALL' | 'PROCESSING' | 'SHIPPED' | 'DELIVERED' | 'CANCELLED';
 
 export default function OrdersPage() {
   const { user } = useAuth();
+  const { showToast } = useToast();
   const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,9 +58,10 @@ export default function OrdersPage() {
       const res = await orderApi.getOrders();
       const orderList = res.data?.content ?? [];
       setOrders([...orderList].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+      showToast('Your order has been cancelled and refund initiated.', 'info', 'Order Cancelled');
     } catch (err) {
       console.error('Failed to cancel order', err);
-      alert('Could not cancel this order. It may have already shipped.');
+      showToast('Could not cancel this order. It may have already been dispatched.', 'error', 'Action Failed');
     } finally {
       setCancellingId(null);
     }

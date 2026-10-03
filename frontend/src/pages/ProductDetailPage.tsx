@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { catalogApi } from '../services/api';
-import { useCart, useWishlist } from '../context/AppContext';
+import { useCart, useWishlist, useToast } from '../context/AppContext';
 import { Product } from '../types';
 import { 
   Heart, 
@@ -24,6 +24,7 @@ export default function ProductDetailPage() {
   const navigate = useNavigate();
   const { cart, addItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
+  const { showToast } = useToast();
 
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
@@ -76,11 +77,13 @@ export default function ProductDetailPage() {
       }, quantity);
       
       setAddSuccess(true);
+      showToast(`Added ${quantity} × "${product.name}" to your shopping bag.`, 'success', 'Bag Updated');
       setTimeout(() => {
         setAddSuccess(false);
       }, 1800);
     } catch (err) {
       console.error('Failed to add to cart', err);
+      showToast(`Could not add "${product.name}" to bag.`, 'error', 'Error');
     } finally {
       setIsAdding(false);
     }
@@ -808,7 +811,15 @@ export default function ProductDetailPage() {
               return (
                 <button 
                   className={`wishlist-main ${isSaved ? 'active' : ''}`}
-                  onClick={() => product && toggleWishlist(product)}
+                  onClick={() => {
+                    if (!product) return;
+                    toggleWishlist(product);
+                    showToast(
+                      isSaved ? `Removed "${product.name}" from your wishlist.` : `Saved "${product.name}" to your wishlist.`,
+                      'info',
+                      isSaved ? 'Wishlist' : 'Saved Item'
+                    );
+                  }}
                 >
                   <Heart size={18} fill={isSaved ? '#EF4444' : 'none'} color={isSaved ? '#EF4444' : 'currentColor'} />
                   {isSaved ? 'Saved to Wishlist' : 'Add to Wishlist'}

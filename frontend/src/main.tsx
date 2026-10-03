@@ -1,7 +1,7 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider, AuthProvider, CartProvider, WishlistProvider } from './context/AppContext';
+import { ThemeProvider, AuthProvider, CartProvider, WishlistProvider, ToastProvider } from './context/AppContext';
 import './index.css';
 import App from './App.tsx';
 
@@ -12,7 +12,9 @@ createRoot(document.getElementById('root')!).render(
         <AuthProvider>
           <CartProvider>
             <WishlistProvider>
-              <App />
+              <ToastProvider>
+                <App />
+              </ToastProvider>
             </WishlistProvider>
           </CartProvider>
         </AuthProvider>
