@@ -518,7 +518,7 @@ export default function AdminOrdersPage() {
                               e.stopPropagation();
                               setActiveActionMenuId((prev) => (prev === order.id ? null : order.id));
                             }}
-                            className={order.status === 'CONFIRMED' || order.status === 'PROCESSING' ? 'glass-btn-primary' : 'glass-btn'}
+                            className="glass-btn"
                             style={{
                               padding: '7px 14px',
                               fontSize: 12,
