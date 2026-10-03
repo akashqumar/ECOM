@@ -19,7 +19,8 @@ import {
   Ban,
   Clock,
   User,
-  ShoppingBag
+  ShoppingBag,
+  MoreVertical
 } from 'lucide-react';
 import { orderApi } from '../services/api';
 import type { Order, OrderTimeline } from '../types';
@@ -31,6 +32,7 @@ export default function AdminOrdersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [activeActionMenuId, setActiveActionMenuId] = useState<string | null>(null);
   const [timelines, setTimelines] = useState<Record<string, OrderTimeline>>({});
   const [loadingTimelines, setLoadingTimelines] = useState<Record<string, boolean>>({});
 
@@ -82,6 +84,13 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, pageSize]);
+
+  // Close dropdown on click outside
+  useEffect(() => {
+    const handleGlobalClick = () => setActiveActionMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
 
   const toggleTimeline = async (orderId: string) => {
     if (expandedOrderId === orderId) {
@@ -499,85 +508,141 @@ export default function AdminOrdersPage() {
                       </div>
                     </div>
 
-                    {/* Action Buttons */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                      {order.status === 'CONFIRMED' && (
-                        <button
-                          onClick={() => handleStatusUpdate(order.id, 'PROCESSING')}
-                          disabled={isUpdatingStatus}
-                          className="glass-btn"
-                          style={{ padding: '7px 14px', fontSize: 12 }}
-                        >
-                          Mark Processing
-                        </button>
-                      )}
+                    {/* Action Operations Dropdown & Timeline Toggle */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, position: 'relative' }}>
+                      {/* Unified Contextual Action Dropdown */}
+                      {(order.status !== 'CANCELLED' && order.status !== 'FAILED') ? (
+                        <div style={{ position: 'relative' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveActionMenuId((prev) => (prev === order.id ? null : order.id));
+                            }}
+                            className={order.status === 'CONFIRMED' || order.status === 'PROCESSING' ? 'glass-btn-primary' : 'glass-btn'}
+                            style={{
+                              padding: '7px 14px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                            }}
+                          >
+                            <span>Manage Order</span>
+                            <ChevronDown size={14} style={{ transform: activeActionMenuId === order.id ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s ease' }} />
+                          </button>
 
-                      {(order.status === 'CONFIRMED' || order.status === 'PROCESSING') && (
-                        <button
-                          onClick={() => {
-                            setShippingModalOrder(order);
-                            generateTrackingNumber();
-                          }}
-                          className="glass-btn-primary"
-                          style={{
-                            padding: '7px 16px',
-                            fontSize: 12,
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                          }}
-                        >
-                          <Truck size={13} />
-                          <span>Dispatch / Ship</span>
-                        </button>
-                      )}
+                          {activeActionMenuId === order.id && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              className="glass-panel"
+                              style={{
+                                position: 'absolute',
+                                right: 0,
+                                top: 'calc(100% + 6px)',
+                                width: 220,
+                                padding: '6px',
+                                borderRadius: 'var(--r-md)',
+                                boxShadow: 'var(--glass-hover-shadow), 0 10px 25px rgba(0,0,0,0.5)',
+                                zIndex: 50,
+                                animation: 'scaleIn 0.15s ease',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 4,
+                              }}
+                            >
+                              <div style={{ padding: '6px 10px', fontSize: 10, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                Next Step ({order.status})
+                              </div>
 
-                      {order.status === 'SHIPPED' && (
-                        <button
-                          onClick={() => handleStatusUpdate(order.id, 'DELIVERED')}
-                          disabled={isUpdatingStatus}
-                          style={{
-                            padding: '7px 16px',
-                            borderRadius: 'var(--r-full)',
-                            border: 'none',
-                            background: 'var(--success)',
-                            color: '#fff',
-                            fontSize: 12,
-                            fontWeight: 700,
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 6,
-                            boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
-                          }}
-                        >
-                          <CheckCircle2 size={13} />
-                          <span>Mark Delivered</span>
-                        </button>
-                      )}
+                              {/* CONFIRMED: Can Mark Processing or Dispatch */}
+                              {order.status === 'CONFIRMED' && (
+                                <button
+                                  onClick={() => {
+                                    setActiveActionMenuId(null);
+                                    handleStatusUpdate(order.id, 'PROCESSING');
+                                  }}
+                                  disabled={isUpdatingStatus}
+                                  className="glass-btn"
+                                  style={{ width: '100%', justifyContent: 'flex-start', padding: '8px 12px', fontSize: 12, borderRadius: 'var(--r-sm)' }}
+                                >
+                                  <Clock size={14} color="var(--warning)" />
+                                  <span>Mark Processing</span>
+                                </button>
+                              )}
 
-                      {/* Cancel Order Button (Available for active non-final orders) */}
-                      {order.status !== 'CANCELLED' && order.status !== 'FAILED' && order.status !== 'DELIVERED' && (
-                        <button
-                          onClick={() => {
-                            setCancelModalOrder(order);
-                            setCancelReason('Cancelled by admin operator');
-                          }}
-                          className="glass-btn"
-                          style={{
-                            padding: '7px 14px',
-                            fontSize: 12,
-                            color: 'var(--danger)',
-                            borderColor: 'rgba(239, 68, 68, 0.35)',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: 5,
-                          }}
-                          title="Cancel Order & Rollback Reservations"
-                        >
-                          <Ban size={13} />
-                          <span>Cancel Order</span>
-                        </button>
+                              {/* CONFIRMED or PROCESSING: Can Dispatch / Ship */}
+                              {(order.status === 'CONFIRMED' || order.status === 'PROCESSING') && (
+                                <button
+                                  onClick={() => {
+                                    setActiveActionMenuId(null);
+                                    setShippingModalOrder(order);
+                                    generateTrackingNumber();
+                                  }}
+                                  className="glass-btn"
+                                  style={{ width: '100%', justifyContent: 'flex-start', padding: '8px 12px', fontSize: 12, borderRadius: 'var(--r-sm)' }}
+                                >
+                                  <Truck size={14} color="var(--info)" />
+                                  <span>Dispatch / Ship...</span>
+                                </button>
+                              )}
+
+                              {/* SHIPPED: Can Mark Delivered (Cannot Cancel) */}
+                              {order.status === 'SHIPPED' && (
+                                <button
+                                  onClick={() => {
+                                    setActiveActionMenuId(null);
+                                    handleStatusUpdate(order.id, 'DELIVERED');
+                                  }}
+                                  disabled={isUpdatingStatus}
+                                  className="glass-btn"
+                                  style={{ width: '100%', justifyContent: 'flex-start', padding: '8px 12px', fontSize: 12, borderRadius: 'var(--r-sm)' }}
+                                >
+                                  <CheckCircle2 size={14} color="var(--success)" />
+                                  <span>Mark Delivered</span>
+                                </button>
+                              )}
+
+                              {/* DELIVERED: Terminal successful state */}
+                              {order.status === 'DELIVERED' && (
+                                <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--success)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  <CheckCircle2 size={14} />
+                                  <span>Order Completed</span>
+                                </div>
+                              )}
+
+                              {/* CANCEL: Only allowed before dispatch/shipment (i.e. PENDING, CONFIRMED, PROCESSING) */}
+                              {(order.status === 'CONFIRMED' || order.status === 'PROCESSING' || order.status === 'PENDING' || order.status === 'PAID') && (
+                                <>
+                                  <div style={{ height: 1, background: 'var(--border-subtle)', margin: '4px 0' }} />
+                                  <button
+                                    onClick={() => {
+                                      setActiveActionMenuId(null);
+                                      setCancelModalOrder(order);
+                                      setCancelReason('Cancelled by admin operator');
+                                    }}
+                                    className="glass-btn"
+                                    style={{
+                                      width: '100%',
+                                      justifyContent: 'flex-start',
+                                      padding: '8px 12px',
+                                      fontSize: 12,
+                                      borderRadius: 'var(--r-sm)',
+                                      color: 'var(--danger)',
+                                    }}
+                                  >
+                                    <Ban size={14} color="var(--danger)" />
+                                    <span>Cancel Order...</span>
+                                  </button>
+                                </>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', padding: '6px 12px', borderRadius: 'var(--r-full)', background: 'var(--glass-bg)' }}>
+                          Closed
+                        </span>
                       )}
 
                       <button
@@ -585,7 +650,7 @@ export default function AdminOrdersPage() {
                         className="glass-btn"
                         style={{ padding: '7px 14px', fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}
                       >
-                        <span>Saga Timeline</span>
+                        <span>Timeline</span>
                         {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                       </button>
                     </div>
