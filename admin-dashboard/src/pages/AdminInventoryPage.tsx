@@ -79,21 +79,7 @@ export default function AdminInventoryPage() {
     setCurrentPage(1);
   }, [searchTerm, statusFilter, pageSize]);
 
-  const handleQuickAdjust = async (productId: string, delta: number, e?: React.MouseEvent) => {
-    if (e) e.stopPropagation();
-    try {
-      const res = await inventoryApi.adjustStock(productId, delta);
-      if (res.success) {
-        setInventoryList((prev) =>
-          prev.map((item) => (item.productId === productId ? res.data : item))
-        );
-        showToast(`Stock updated (${delta > 0 ? '+' : ''}${delta})`, 'success');
-      }
-    } catch (err: any) {
-      const msg = err?.response?.data?.message || 'Failed to adjust stock';
-      showToast(msg, 'error');
-    }
-  };
+
 
   const handleModalAdjustSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -459,65 +445,22 @@ export default function AdminInventoryPage() {
                         )}
                       </td>
                       <td style={{ padding: '14px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
-                        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                          <button
-                            onClick={(e) => handleQuickAdjust(item.productId, -5, e)}
-                            disabled={item.availableQuantity < 5}
-                            className="glass-btn"
-                            style={{
-                              width: 32,
-                              height: 30,
-                              padding: 0,
-                              borderRadius: 'var(--r-sm)',
-                              fontWeight: 700,
-                              fontSize: 11,
-                              cursor: item.availableQuantity < 5 ? 'not-allowed' : 'pointer',
-                            }}
-                          >
-                            -5
-                          </button>
-                          <button
-                            onClick={(e) => handleQuickAdjust(item.productId, 10, e)}
-                            className="glass-btn"
-                            style={{
-                              width: 34,
-                              height: 30,
-                              padding: 0,
-                              borderRadius: 'var(--r-sm)',
-                              fontWeight: 700,
-                              fontSize: 11,
-                            }}
-                          >
-                            +10
-                          </button>
-                          <button
-                            onClick={(e) => handleQuickAdjust(item.productId, 50, e)}
-                            className="glass-btn"
-                            style={{
-                              width: 34,
-                              height: 30,
-                              padding: 0,
-                              borderRadius: 'var(--r-sm)',
-                              fontWeight: 700,
-                              fontSize: 11,
-                            }}
-                          >
-                            +50
-                          </button>
-                          <button
-                            onClick={() => { setSelectedItem(item); setAdjustDelta(20); }}
-                            className="glass-btn-primary"
-                            style={{
-                              padding: '5px 12px',
-                              height: 30,
-                              borderRadius: 'var(--r-full)',
-                              fontSize: 12,
-                              marginLeft: 4,
-                            }}
-                          >
-                            Adjust...
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => { setSelectedItem(item); setAdjustDelta(20); }}
+                          className="glass-btn-primary"
+                          style={{
+                            padding: '6px 14px',
+                            height: 32,
+                            borderRadius: 'var(--r-full)',
+                            fontSize: 12,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: 6,
+                          }}
+                        >
+                          <Boxes size={13} />
+                          <span>Adjust Stock</span>
+                        </button>
                       </td>
                     </tr>
                   );
