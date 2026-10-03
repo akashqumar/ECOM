@@ -29,7 +29,7 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [activeImage, setActiveImage] = useState(0);
-  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('contain');
+  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('cover');
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
@@ -221,8 +221,12 @@ export default function ProductDetailPage() {
         .main-image-wrap.mode-cover .main-image {
           object-fit: cover;
           filter: none;
+          transform: scale(1.02);
         }
-        .main-image-wrap:hover .main-image {
+        .main-image-wrap.mode-cover:hover .main-image {
+          transform: scale(1.08);
+        }
+        .main-image-wrap.mode-contain:hover .main-image {
           transform: scale(1.04);
         }
 
@@ -689,10 +693,10 @@ export default function ProductDetailPage() {
               type="button" 
               className="image-fit-toggle"
               onClick={() => setImageFitMode(prev => prev === 'contain' ? 'cover' : 'contain')}
-              title={imageFitMode === 'contain' ? 'Cover whole panel' : 'Fit full image'}
-              aria-label={imageFitMode === 'contain' ? 'Cover whole panel' : 'Fit full image'}
+              title={imageFitMode === 'cover' ? 'Zoom out to fit full photo' : 'Zoom in to fill panel'}
+              aria-label={imageFitMode === 'cover' ? 'Zoom out to fit full photo' : 'Zoom in to fill panel'}
             >
-              {imageFitMode === 'contain' ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+              {imageFitMode === 'cover' ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
             </button>
           </div>
           
