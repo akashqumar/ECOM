@@ -21,9 +21,12 @@ import {
   Clock, 
   CheckCircle2, 
   ShoppingBag, 
-  ArrowRight,
   XCircle,
-  Gift
+  Gift,
+  MapPin,
+  Lock,
+  ShieldCheck,
+  ArrowRight
 } from 'lucide-react';
 
 type Tab = 'INFO' | 'ORDERS' | 'PREF';
@@ -685,6 +688,92 @@ export default function ProfilePage() {
                     <option value="EUR">EUR (€) — Euro</option>
                     <option value="GBP">GBP (£) — British Pound</option>
                   </select>
+                </div>
+              </div>
+
+              {/* Saved Delivery Addresses */}
+              <div className="panel-header-row" style={{ marginTop: '36px' }}>
+                <div>
+                  <h3 className="panel-heading">Saved Addresses</h3>
+                  <p className="panel-subheading">Default delivery addresses applied at expedited checkout.</p>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+                <div style={{
+                  padding: '20px',
+                  borderRadius: 'var(--r-lg)',
+                  background: 'var(--c-surface)',
+                  border: '1px solid var(--c-border)',
+                  boxShadow: 'var(--shadow-xs)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <MapPin size={15} color="var(--c-accent-2)" /> Primary Residence
+                    </span>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-accent-2)', background: 'rgba(196, 151, 74, 0.12)', padding: '2px 8px', borderRadius: 'var(--r-full)' }}>DEFAULT</span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--c-text-2)', lineHeight: 1.5 }}>
+                    742 Evergreen Terrace<br />Springfield, OR 97477, United States
+                  </div>
+                </div>
+
+                <div style={{
+                  padding: '20px',
+                  borderRadius: 'var(--r-lg)',
+                  background: 'var(--c-surface)',
+                  border: '1px solid var(--c-border-subtle)',
+                  boxShadow: 'var(--shadow-xs)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 8,
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <MapPin size={15} color="var(--c-text-3)" /> Executive Suite
+                    </span>
+                  </div>
+                  <div style={{ fontSize: 13, color: 'var(--c-text-2)', lineHeight: 1.5 }}>
+                    500 Madison Ave, Fl 18<br />New York, NY 10022, United States
+                  </div>
+                </div>
+              </div>
+
+              {/* Password & Security */}
+              <div className="panel-header-row" style={{ marginTop: '36px' }}>
+                <div>
+                  <h3 className="panel-heading">Security & Password</h3>
+                  <p className="panel-subheading">Authentication protection and session credentials.</p>
+                </div>
+              </div>
+
+              <div className="profile-glass-card">
+                <div className="pref-row-item">
+                  <div>
+                    <h4 className="pref-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Lock size={16} color="var(--c-accent-2)" /> Password Protection
+                    </h4>
+                    <p className="pref-desc">•••••••••••• (Last updated 14 days ago)</p>
+                  </div>
+                  <button 
+                    className="pref-theme-btn" 
+                    onClick={() => alert('A secure password reset link has been dispatched to your email address.')}
+                  >
+                    <span>Update Password</span>
+                  </button>
+                </div>
+                <div className="pref-divider" />
+                <div className="pref-row-item">
+                  <div>
+                    <h4 className="pref-title" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <ShieldCheck size={16} color="var(--c-success)" /> Two-Factor Authentication
+                    </h4>
+                    <p className="pref-desc">Biometric passkey and token verification active</p>
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-success)' }}>ENABLED</span>
                 </div>
               </div>
             </div>
