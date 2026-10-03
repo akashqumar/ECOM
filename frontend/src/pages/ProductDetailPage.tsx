@@ -13,7 +13,9 @@ import {
   ChevronDown,
   ChevronUp,
   Check,
-  ChevronRight
+  ChevronRight,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 export default function ProductDetailPage() {
@@ -27,6 +29,7 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   
   const [activeImage, setActiveImage] = useState(0);
+  const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('contain');
   const [quantity, setQuantity] = useState(1);
   const [isAdding, setIsAdding] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
@@ -154,14 +157,13 @@ export default function ProductDetailPage() {
         }
 
         .main-image-wrap {
+          position: relative;
           width: 100%;
           aspect-ratio: 1 / 1;
           height: auto;
           max-height: 560px;
           flex-shrink: 0;
-          background: var(--glass-bg);
-          backdrop-filter: var(--glass-blur);
-          -webkit-backdrop-filter: var(--glass-blur);
+          background: var(--c-surface);
           border-radius: var(--r-xl);
           overflow: hidden;
           display: flex;
@@ -171,16 +173,83 @@ export default function ProductDetailPage() {
           box-shadow: var(--glass-shadow), var(--glass-highlight);
           padding: 24px;
           box-sizing: border-box;
+          transition: all var(--transition);
         }
+        .main-image-wrap.mode-cover {
+          padding: 0;
+        }
+
+        /* Ambient frosted matching background to seamlessly cover whole panel */
+        .ambient-backdrop-img {
+          position: absolute;
+          inset: -32px;
+          width: calc(100% + 64px);
+          height: calc(100% + 64px);
+          object-fit: cover;
+          filter: blur(36px) saturate(190%) brightness(0.7);
+          opacity: 0.85;
+          transform: scale(1.15);
+          pointer-events: none;
+          z-index: 1;
+          transition: opacity 0.4s ease, filter 0.4s ease;
+        }
+        [data-theme='dark'] .ambient-backdrop-img {
+          filter: blur(40px) saturate(200%) brightness(0.4);
+          opacity: 0.9;
+        }
+        .ambient-backdrop-overlay {
+          position: absolute;
+          inset: 0;
+          background: radial-gradient(circle at center, rgba(255, 255, 255, 0.08) 0%, rgba(0, 0, 0, 0.35) 100%);
+          pointer-events: none;
+          z-index: 2;
+        }
+        [data-theme='dark'] .ambient-backdrop-overlay {
+          background: radial-gradient(circle at center, rgba(255, 255, 255, 0.02) 0%, rgba(0, 0, 0, 0.55) 100%);
+        }
+
         .main-image {
+          position: relative;
+          z-index: 3;
           width: 100%;
           height: 100%;
           max-height: 100%;
           object-fit: contain;
-          transition: transform 0.4s ease;
+          transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+          filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+        }
+        .main-image-wrap.mode-cover .main-image {
+          object-fit: cover;
+          filter: none;
         }
         .main-image-wrap:hover .main-image {
-          transform: scale(1.05);
+          transform: scale(1.04);
+        }
+
+        .image-fit-toggle {
+          position: absolute;
+          top: 14px;
+          right: 14px;
+          z-index: 4;
+          background: rgba(15, 23, 42, 0.55);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          border: 1px solid rgba(255, 255, 255, 0.25);
+          color: #FFFFFF;
+          width: 34px;
+          height: 34px;
+          border-radius: var(--r-full);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: pointer;
+          transition: all var(--transition);
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+        }
+        .image-fit-toggle:hover {
+          background: rgba(15, 23, 42, 0.85);
+          transform: scale(1.08);
+          border-color: rgba(255, 255, 255, 0.45);
         }
 
         .thumbnail-strip {
@@ -598,8 +667,33 @@ export default function ProductDetailPage() {
 
       <div className="pdp-layout">
         <div className="image-col">
-          <div className="main-image-wrap">
-            <img src={images[activeImage]} alt={product.name} className="main-image" />
+          <div className={`main-image-wrap ${imageFitMode === 'cover' ? 'mode-cover' : 'mode-contain'}`}>
+            {/* Ambient frosted matching background to seamlessly cover whole panel */}
+            <img 
+              src={images[activeImage]} 
+              alt="" 
+              aria-hidden="true" 
+              className="ambient-backdrop-img" 
+            />
+            <div className="ambient-backdrop-overlay" />
+
+            {/* Main product photo */}
+            <img 
+              src={images[activeImage]} 
+              alt={product.name} 
+              className="main-image" 
+            />
+
+            {/* Toggle between fit with ambient blur vs full bleed cover */}
+            <button 
+              type="button" 
+              className="image-fit-toggle"
+              onClick={() => setImageFitMode(prev => prev === 'contain' ? 'cover' : 'contain')}
+              title={imageFitMode === 'contain' ? 'Cover whole panel' : 'Fit full image'}
+              aria-label={imageFitMode === 'contain' ? 'Cover whole panel' : 'Fit full image'}
+            >
+              {imageFitMode === 'contain' ? <Maximize2 size={16} /> : <Minimize2 size={16} />}
+            </button>
           </div>
           
           {images.length > 1 && (
