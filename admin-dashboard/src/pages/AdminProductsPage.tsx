@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Package, Search, RefreshCw, Star, Tag, Layers, ExternalLink } from 'lucide-react';
+import { Package, Search, RefreshCw, Star } from 'lucide-react';
 import { catalogApi } from '../services/api';
 import type { Product } from '../types';
 
@@ -49,29 +49,23 @@ export default function AdminProductsPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+            <span className="glass-pill" style={{ color: 'var(--accent)' }}>
+              CATALOG REPOSITORY
+            </span>
+          </div>
+          <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px' }}>
             Product Catalog & Pricing Management
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+          <p style={{ fontSize: 13, color: 'var(--c-text-2)', marginTop: 4 }}>
             Direct catalog inspection, SKU tracking, category mapping, and pricing rules.
           </p>
         </div>
         <button
           onClick={loadData}
           disabled={loading}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '9px 16px',
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            background: 'var(--bg-card)',
-            color: 'var(--text-primary)',
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-          }}
+          className="glass-btn"
+          style={{ cursor: loading ? 'not-allowed' : 'pointer' }}
         >
           <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
           <span>Sync Catalog</span>
@@ -80,52 +74,45 @@ export default function AdminProductsPage() {
 
       {/* Filter and Search Bar */}
       <div
+        className="glass-panel"
         style={{
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          padding: '16px 20px',
+          padding: '18px 22px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexWrap: 'wrap',
           gap: 14,
-          boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 420 }}>
-          <Search size={16} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+        <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 440 }}>
+          <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-text-3)' }} />
           <input
             type="text"
             placeholder="Search by title, SKU, or brand..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
+            className="glass-input"
             style={{
               width: '100%',
-              padding: '9px 12px 9px 36px',
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-input)',
-              color: 'var(--text-primary)',
+              padding: '10px 14px 10px 40px',
+              borderRadius: 'var(--radius-sm)',
               fontSize: 13,
-              outline: 'none',
+              boxSizing: 'border-box',
             }}
           />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>Category:</span>
+          <span style={{ fontSize: 13, color: 'var(--c-text-2)', fontWeight: 600 }}>Category:</span>
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
+            className="glass-input"
             style={{
-              padding: '8px 12px',
-              borderRadius: 8,
-              border: '1px solid var(--border)',
-              background: 'var(--bg-input)',
-              color: 'var(--text-primary)',
+              padding: '8px 14px',
+              borderRadius: 'var(--radius-sm)',
               fontSize: 13,
-              outline: 'none',
+              fontWeight: 500,
             }}
           >
             <option value="">All Categories ({products.length})</option>
@@ -142,81 +129,97 @@ export default function AdminProductsPage() {
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-          gap: 18,
+          gridTemplateColumns: 'repeat(auto-fill, minmax(270px, 1fr))',
+          gap: 20,
         }}
       >
-        {filteredProducts.map((product) => (
-          <div
-            key={product.id}
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              overflow: 'hidden',
-              display: 'flex',
-              flexDirection: 'column',
-              boxShadow: 'var(--shadow-sm)',
-            }}
-          >
-            <div style={{ height: 160, background: 'var(--bg-tertiary)', overflow: 'hidden', position: 'relative' }}>
-              {product.images?.[0] ? (
-                <img src={product.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              ) : (
-                <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Package size={36} color="var(--text-tertiary)" />
-                </div>
-              )}
-              <span
-                style={{
-                  position: 'absolute',
-                  top: 10,
-                  left: 10,
-                  fontSize: 10,
-                  fontWeight: 700,
-                  background: 'rgba(0,0,0,0.7)',
-                  color: '#fff',
-                  padding: '2px 8px',
-                  borderRadius: 6,
-                  fontFamily: 'monospace',
-                }}
-              >
-                {product.sku}
-              </span>
+        {loading ? (
+          Array.from({ length: 6 }).map((_, idx) => (
+            <div key={idx} className="glass-panel" style={{ height: 320, padding: 18 }}>
+              <div className="skeleton" style={{ height: 160, marginBottom: 14 }} />
+              <div className="skeleton" style={{ height: 16, width: '40%', marginBottom: 8 }} />
+              <div className="skeleton" style={{ height: 20, width: '80%', marginBottom: 12 }} />
+              <div className="skeleton" style={{ height: 24, width: '50%' }} />
             </div>
-
-            <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
-              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase' }}>
-                {product.brand}
-              </span>
-              <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', lineHeight: 1.3 }}>
-                {product.name}
-              </div>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Star size={13} fill="#f59e0b" color="#f59e0b" />
-                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{product.rating}</span>
-                <span style={{ fontSize: 11, color: 'var(--text-tertiary)' }}>({product.reviewCount} reviews)</span>
-              </div>
-
-              <div style={{ marginTop: 'auto', paddingTop: 8, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between' }}>
-                <div>
-                  <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--text-primary)' }}>
-                    ${(product.discountPrice || product.price).toFixed(2)}
-                  </span>
-                  {product.discountPrice && (
-                    <span style={{ fontSize: 12, color: 'var(--text-tertiary)', textDecoration: 'line-through', marginLeft: 6 }}>
-                      ${product.price.toFixed(2)}
-                    </span>
-                  )}
-                </div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-light)', padding: '2px 8px', borderRadius: 99 }}>
-                  ACTIVE
+          ))
+        ) : filteredProducts.length === 0 ? (
+          <div className="glass-panel" style={{ gridColumn: '1 / -1', padding: '60px 20px', textAlign: 'center', color: 'var(--c-text-3)' }}>
+            <Package size={44} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
+            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>No products found</div>
+          </div>
+        ) : (
+          filteredProducts.map((product) => (
+            <div
+              key={product.id}
+              className="glass-panel glass-panel-hover"
+              style={{
+                borderRadius: 'var(--radius)',
+                boxShadow: 'var(--glass-shadow), var(--glass-highlight)',
+                display: 'flex',
+                flexDirection: 'column',
+              }}
+            >
+              <div style={{ height: 170, background: 'rgba(255,255,255,0.06)', overflow: 'hidden', position: 'relative' }}>
+                {product.images?.[0] ? (
+                  <img src={product.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                ) : (
+                  <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <Package size={40} color="var(--c-text-3)" />
+                  </div>
+                )}
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: 10,
+                    left: 10,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    background: 'rgba(15, 23, 42, 0.75)',
+                    backdropFilter: 'blur(6px)',
+                    color: '#fff',
+                    padding: '3px 8px',
+                    borderRadius: 'var(--r-xs)',
+                    fontFamily: 'monospace',
+                    border: '1px solid rgba(255, 255, 255, 0.15)',
+                  }}
+                >
+                  {product.sku}
                 </span>
               </div>
+
+              <div style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--accent)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {product.brand}
+                </span>
+                <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--c-text-1)', lineHeight: 1.35 }}>
+                  {product.name}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  <Star size={13} fill="#f59e0b" color="#f59e0b" />
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-1)' }}>{product.rating}</span>
+                  <span style={{ fontSize: 11, color: 'var(--c-text-3)' }}>({product.reviewCount} reviews)</span>
+                </div>
+
+                <div style={{ marginTop: 'auto', paddingTop: 12, display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)' }}>
+                  <div>
+                    <span style={{ fontSize: 18, fontWeight: 800, color: 'var(--c-text-1)' }}>
+                      ${(product.discountPrice || product.price).toFixed(2)}
+                    </span>
+                    {product.discountPrice && (
+                      <span style={{ fontSize: 12, color: 'var(--c-text-3)', textDecoration: 'line-through', marginLeft: 6 }}>
+                        ${product.price.toFixed(2)}
+                      </span>
+                    )}
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--success)', background: 'var(--success-light)', padding: '2px 8px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
+                    ACTIVE
+                  </span>
+                </div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))
+        )}
       </div>
     </div>
   );

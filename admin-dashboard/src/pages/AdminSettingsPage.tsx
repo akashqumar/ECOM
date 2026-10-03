@@ -1,16 +1,9 @@
 import React, { useState } from 'react';
 import {
-  Settings,
   Palette,
   Warehouse,
-  Bell,
-  RefreshCw,
-  Sliders,
   CheckCircle2,
-  Database,
-  Radio,
-  Layers,
-  Sparkles
+  Radio
 } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
@@ -19,12 +12,12 @@ export default function AdminSettingsPage() {
   const [savedToast, setSavedToast] = useState(false);
 
   const ACCENT_COLORS = [
-    { label: 'Cyber Indigo', hex: '#6366f1' },
-    { label: 'Neon Cyan', hex: '#06b6d4' },
-    { label: 'Electric Pink', hex: '#ec4899' },
-    { label: 'Emerald Tech', hex: '#10b981' },
-    { label: 'Amber Alert', hex: '#f59e0b' },
+    { label: 'Aero Blue', hex: '#2563eb' },
+    { label: 'Cyan Sky', hex: '#0284c7' },
     { label: 'Royal Violet', hex: '#8b5cf6' },
+    { label: 'Emerald Mint', hex: '#059669' },
+    { label: 'Warm Amber', hex: '#d97706' },
+    { label: 'Electric Rose', hex: '#db2777' },
   ];
 
   const WAREHOUSES = [
@@ -57,8 +50,8 @@ export default function AdminSettingsPage() {
             display: 'flex',
             alignItems: 'center',
             gap: 10,
-            padding: '12px 20px',
-            borderRadius: 12,
+            padding: '14px 22px',
+            borderRadius: 'var(--r-md)',
             background: 'var(--success)',
             color: '#fff',
             fontSize: 14,
@@ -73,26 +66,31 @@ export default function AdminSettingsPage() {
 
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <span className="glass-pill" style={{ color: 'var(--accent)' }}>
+            CUSTOMIZATION & TOPOLOGY
+          </span>
+        </div>
+        <h1 style={{ fontSize: 28, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '-0.5px' }}>
           Operations & Console Customization
         </h1>
-        <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>
+        <p style={{ fontSize: 13, color: 'var(--c-text-2)', marginTop: 4 }}>
           Personalize console styling, set multi-warehouse routing defaults, adjust stock threshold rules, and inspect microservice telemetry.
         </p>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
         {/* Accent Color & Theme Customization */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <div className="glass-panel" style={{ padding: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
             <Palette size={20} color="var(--accent)" />
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>
               Console Visual Identity & Color Theme
             </h3>
           </div>
 
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 10 }}>
+          <div style={{ marginBottom: 22 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Primary Accent Color:
             </label>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
@@ -104,19 +102,20 @@ export default function AdminSettingsPage() {
                     onClick={() => handleColorChange(c.hex)}
                     style={{
                       padding: '12px',
-                      borderRadius: 10,
-                      border: `2px solid ${isSelected ? c.hex : 'var(--border)'}`,
-                      background: 'var(--bg)',
+                      borderRadius: 'var(--radius-sm)',
+                      border: `1.5px solid ${isSelected ? c.hex : 'var(--glass-border)'}`,
+                      background: 'var(--glass-bg)',
+                      backdropFilter: 'var(--glass-blur)',
                       cursor: 'pointer',
                       display: 'flex',
                       alignItems: 'center',
                       gap: 8,
-                      transition: 'all 0.15s ease',
-                      boxShadow: isSelected ? `0 0 12px ${c.hex}40` : 'none',
+                      transition: 'all var(--transition)',
+                      boxShadow: isSelected ? `0 0 16px ${c.hex}50` : 'var(--glass-highlight)',
                     }}
                   >
-                    <span style={{ width: 16, height: 16, borderRadius: '50%', background: c.hex, display: 'inline-block' }} />
-                    <span style={{ fontSize: 12, fontWeight: isSelected ? 700 : 500, color: 'var(--text-primary)' }}>
+                    <span style={{ width: 16, height: 16, borderRadius: '50%', background: c.hex, display: 'inline-block', boxShadow: `0 0 6px ${c.hex}` }} />
+                    <span style={{ fontSize: 12, fontWeight: isSelected ? 700 : 500, color: 'var(--c-text-1)' }}>
                       {c.label}
                     </span>
                   </button>
@@ -125,23 +124,15 @@ export default function AdminSettingsPage() {
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderTop: '1px solid var(--border-subtle)', paddingTop: 18 }}>
             <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>Global Theme Mode</div>
-              <div style={{ fontSize: 12, color: 'var(--text-tertiary)' }}>Current: {theme.toUpperCase()}</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>Global Theme Mode</div>
+              <div style={{ fontSize: 12, color: 'var(--c-text-3)' }}>Current: {theme.toUpperCase()}</div>
             </div>
             <button
               onClick={toggleTheme}
-              style={{
-                padding: '8px 16px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--bg)',
-                color: 'var(--text-primary)',
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
+              className="glass-btn"
+              style={{ padding: '8px 16px', fontSize: 13 }}
             >
               Switch to {theme === 'dark' ? 'Light' : 'Dark'} Mode
             </button>
@@ -149,16 +140,16 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Warehouse & Inventory Thresholds */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+        <div className="glass-panel" style={{ padding: '26px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
             <Warehouse size={20} color="var(--accent)" />
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>
               Fulfillment & Warehouse Configuration
             </h3>
           </div>
 
-          <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+          <div style={{ marginBottom: 22 }}>
+            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
               Default Dispatch Warehouse:
             </label>
             <select
@@ -167,15 +158,12 @@ export default function AdminSettingsPage() {
                 updateCustomization({ defaultWarehouse: e.target.value });
                 showSaveToast();
               }}
+              className="glass-input"
               style={{
                 width: '100%',
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--bg-input)',
-                color: 'var(--text-primary)',
+                padding: '11px 14px',
+                borderRadius: 'var(--radius-sm)',
                 fontSize: 13,
-                outline: 'none',
               }}
             >
               {WAREHOUSES.map((w) => (
@@ -188,10 +176,10 @@ export default function AdminSettingsPage() {
 
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-secondary)' }}>
+              <label style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                 Low Stock Alert Threshold:
               </label>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>
+              <span style={{ fontSize: 13, fontWeight: 800, color: 'var(--accent)' }}>
                 {customization.lowStockThreshold} units
               </span>
             </div>
@@ -205,9 +193,9 @@ export default function AdminSettingsPage() {
                 updateCustomization({ lowStockThreshold: parseInt(e.target.value) });
                 showSaveToast();
               }}
-              style={{ width: '100%', accentColor: 'var(--accent)' }}
+              style={{ width: '100%', accentColor: 'var(--accent)', cursor: 'pointer' }}
             />
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-tertiary)', marginTop: 4 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--c-text-3)', marginTop: 6 }}>
               <span>5 units (Strict)</span>
               <span>50 units</span>
               <span>100 units (High buffer)</span>
@@ -216,15 +204,15 @@ export default function AdminSettingsPage() {
         </div>
 
         {/* Telemetry & Outbox Architecture Monitoring */}
-        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '24px', gridColumn: '1/-1' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+        <div className="glass-panel" style={{ padding: '26px', gridColumn: '1/-1' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
             <Radio size={20} color="var(--accent)" />
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>
               Distributed Kafka Topics & Event Stream Topology
             </h3>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16 }}>
             {[
               { topic: 'order.events', producer: 'order-service', consumer: 'inventory, payment, notification', events: 'ORDER_CREATED, ORDER_SHIPPED, ORDER_DELIVERED' },
               { topic: 'inventory.events', producer: 'inventory-service', consumer: 'order-service (Saga)', events: 'INVENTORY_RESERVED, INVENTORY_RELEASED, INVENTORY_DEDUCTED' },
@@ -233,26 +221,28 @@ export default function AdminSettingsPage() {
             ].map((t) => (
               <div
                 key={t.topic}
+                className="glass-panel-hover"
                 style={{
-                  padding: '16px',
-                  borderRadius: 10,
-                  background: 'var(--bg)',
+                  padding: '18px',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'var(--glass-bg)',
                   border: '1px solid var(--border-subtle)',
+                  boxShadow: 'var(--glass-highlight)',
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                   <code style={{ fontSize: 13, fontWeight: 700, color: 'var(--accent)' }}>{t.topic}</code>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', background: 'var(--success-light)', padding: '2px 6px', borderRadius: 4 }}>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', background: 'var(--success-light)', padding: '2px 8px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
                     ACTIVE
                   </span>
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+                <div style={{ fontSize: 12, color: 'var(--c-text-2)' }}>
                   <strong>Producer:</strong> {t.producer}
                 </div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>
+                <div style={{ fontSize: 12, color: 'var(--c-text-2)', marginTop: 3 }}>
                   <strong>Consumers:</strong> {t.consumer}
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-tertiary)', marginTop: 8, fontFamily: 'monospace' }}>
+                <div style={{ fontSize: 11, color: 'var(--c-text-3)', marginTop: 10, fontFamily: 'monospace' }}>
                   {t.events}
                 </div>
               </div>

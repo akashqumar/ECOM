@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
+import { Lock, Mail, ArrowRight, AlertCircle, Eye, EyeOff } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
 export default function AdminLoginPage() {
@@ -30,43 +30,66 @@ export default function AdminLoginPage() {
         alignItems: 'center',
         justifyContent: 'center',
         padding: '24px',
-        background: 'radial-gradient(ellipse at top, #1e1b4b 0%, #0b0f17 100%)',
+        position: 'relative',
+        zIndex: 1,
       }}
     >
       <div
+        className="glass-panel"
         style={{
           width: '100%',
-          maxWidth: 420,
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border)',
-          borderRadius: 20,
-          padding: '36px',
-          boxShadow: 'var(--shadow-lg)',
-          animation: 'fadeIn 0.3s ease',
+          maxWidth: 440,
+          padding: '40px 36px',
+          boxShadow: 'var(--glass-shadow), var(--glass-highlight)',
+          animation: 'fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1)',
         }}
       >
         {/* Header */}
-        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+        <div style={{ textAlign: 'center', marginBottom: 32 }}>
           <div
             style={{
-              width: 52,
-              height: 52,
-              borderRadius: 14,
+              width: 56,
+              height: 56,
+              borderRadius: 'var(--r-md)',
               background: 'linear-gradient(135deg, var(--accent) 0%, #06b6d4 100%)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              margin: '0 auto 16px',
-              boxShadow: '0 0 20px var(--accent-glow)',
+              margin: '0 auto 18px',
+              boxShadow: '0 8px 24px var(--accent-glow)',
+              border: '1px solid rgba(255, 255, 255, 0.4)',
             }}
           >
-            <ShieldCheck size={28} color="#fff" />
+            <div
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                background: '#FFFFFF',
+                boxShadow: '0 0 12px rgba(255, 255, 255, 0.9)',
+              }}
+            />
           </div>
-          <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>
-            Aura<span style={{ color: 'var(--accent)' }}>Ops</span> Console
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-tertiary)', marginTop: 4 }}>
-            Enterprise Microservices & Saga Operations Portal
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+            <h1 style={{ fontSize: 24, fontWeight: 800, color: 'var(--c-text-1)', letterSpacing: '0.04em' }}>
+              LUMÉ
+            </h1>
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--accent)',
+                background: 'var(--accent-light)',
+                padding: '2px 8px',
+                borderRadius: 'var(--r-full)',
+                border: '1px solid var(--border-subtle)',
+              }}
+            >
+              OPS
+            </span>
+          </div>
+          <p style={{ fontSize: 13, color: 'var(--c-text-3)', marginTop: 4 }}>
+            Aero Enterprise Operations & Kafka Telemetry Console
           </p>
         </div>
 
@@ -76,8 +99,8 @@ export default function AdminLoginPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '12px 14px',
-              borderRadius: 10,
+              padding: '12px 16px',
+              borderRadius: 'var(--radius-sm)',
               background: 'var(--danger-light)',
               border: '1px solid var(--danger)',
               color: 'var(--danger)',
@@ -90,28 +113,44 @@ export default function AdminLoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.05em' }}>
+            <label
+              style={{
+                display: 'block',
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--c-text-2)',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+                letterSpacing: '0.06em',
+              }}
+            >
               Administrator Email
             </label>
             <div style={{ position: 'relative' }}>
-              <Mail size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+              <Mail
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--c-text-3)',
+                }}
+              />
               <input
                 type="email"
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="admin@example.com"
+                className="glass-input"
                 style={{
                   width: '100%',
                   padding: '12px 14px 12px 42px',
-                  borderRadius: 10,
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-sm)',
                   fontSize: 14,
-                  outline: 'none',
                   boxSizing: 'border-box',
                 }}
               />
@@ -119,26 +158,42 @@ export default function AdminLoginPage() {
           </div>
 
           <div>
-            <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.05em' }}>
-              Secret Password
+            <label
+              style={{
+                display: 'block',
+                fontSize: 11,
+                fontWeight: 700,
+                color: 'var(--c-text-2)',
+                textTransform: 'uppercase',
+                marginBottom: 8,
+                letterSpacing: '0.06em',
+              }}
+            >
+              Master Password
             </label>
             <div style={{ position: 'relative' }}>
-              <Lock size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-tertiary)' }} />
+              <Lock
+                size={16}
+                style={{
+                  position: 'absolute',
+                  left: 14,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  color: 'var(--c-text-3)',
+                }}
+              />
               <input
                 type={showPassword ? 'text' : 'password'}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••••••"
+                className="glass-input"
                 style={{
                   width: '100%',
                   padding: '12px 44px 12px 42px',
-                  borderRadius: 10,
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg-input)',
-                  color: 'var(--text-primary)',
+                  borderRadius: 'var(--radius-sm)',
                   fontSize: 14,
-                  outline: 'none',
                   boxSizing: 'border-box',
                 }}
               />
@@ -152,7 +207,7 @@ export default function AdminLoginPage() {
                   transform: 'translateY(-50%)',
                   background: 'transparent',
                   border: 'none',
-                  color: 'var(--text-tertiary)',
+                  color: 'var(--c-text-3)',
                   cursor: 'pointer',
                   padding: 4,
                 }}
@@ -162,20 +217,28 @@ export default function AdminLoginPage() {
             </div>
           </div>
 
-          <div style={{ padding: '12px', borderRadius: 8, background: 'var(--bg-tertiary)', fontSize: 12, color: 'var(--text-secondary)' }}>
-            🔐 <strong>Production Seed Credentials:</strong><br />
+          <div
+            style={{
+              padding: '12px 14px',
+              borderRadius: 'var(--radius-sm)',
+              background: 'var(--accent-light)',
+              border: '1px solid var(--border-subtle)',
+              fontSize: 12,
+              color: 'var(--c-text-2)',
+              lineHeight: 1.5,
+            }}
+          >
+            🔐 <strong>Administrator Credentials:</strong><br />
             <code>admin@example.com</code> / <code>password123</code>
           </div>
 
           <button
             type="submit"
             disabled={isLoading}
+            className="glass-btn-primary"
             style={{
               padding: '14px',
-              borderRadius: 12,
-              border: 'none',
-              background: 'linear-gradient(135deg, var(--accent) 0%, #4338ca 100%)',
-              color: '#fff',
+              borderRadius: 'var(--r-full)',
               fontSize: 14,
               fontWeight: 700,
               cursor: isLoading ? 'not-allowed' : 'pointer',
@@ -183,15 +246,15 @@ export default function AdminLoginPage() {
               alignItems: 'center',
               justifyContent: 'center',
               gap: 8,
-              boxShadow: '0 4px 14px var(--accent-glow)',
-              transition: 'opacity 0.15s ease',
+              transition: 'all var(--transition)',
+              marginTop: 4,
             }}
           >
             {isLoading ? (
-              <span>Authenticating with JWT...</span>
+              <span>Authenticating JWT...</span>
             ) : (
               <>
-                <span>Access Operations Console</span>
+                <span>Enter Operations Console</span>
                 <ArrowRight size={16} />
               </>
             )}
