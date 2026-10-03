@@ -61,6 +61,8 @@ export interface Order {
   currency: string;
   shippingAddress: string;
   items: OrderItem[];
+  trackingNumber?: string;
+  carrier?: string;
   createdAt: string;
   updatedAt: string;
 }

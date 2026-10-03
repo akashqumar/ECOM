@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Package,
   Search,
@@ -6,6 +7,7 @@ import {
   Truck,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   X,
   ChevronDown,
   ChevronUp,
@@ -13,7 +15,11 @@ import {
   Calendar,
   Layers,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Ban,
+  Clock,
+  User,
+  ShoppingBag
 } from 'lucide-react';
 import { orderApi } from '../services/api';
 import type { Order, OrderTimeline } from '../types';
@@ -37,6 +43,12 @@ export default function AdminOrdersPage() {
   const [carrier, setCarrier] = useState('FedEx Priority');
   const [trackingNumber, setTrackingNumber] = useState('');
   const [shippingNotes, setShippingNotes] = useState('Dispatched from WH-MAIN-01 fulfillment hub');
+
+  // Cancel Modal State
+  const [cancelModalOrder, setCancelModalOrder] = useState<Order | null>(null);
+  const [cancelReason, setCancelReason] = useState('Admin manual cancellation / Out of stock');
+  const [isCancelling, setIsCancelling] = useState(false);
+
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
@@ -127,6 +139,33 @@ export default function AdminOrdersPage() {
     const prefix = carrier.startsWith('DHL') ? 'DHL' : carrier.startsWith('UPS') ? '1Z' : 'FDX';
     const rand = Math.floor(100000000 + Math.random() * 900000000);
     setTrackingNumber(`${prefix}-${rand}`);
+  };
+
+  const handleCancelOrder = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!cancelModalOrder) return;
+    setIsCancelling(true);
+    try {
+      const res = await orderApi.cancelOrder(cancelModalOrder.id, cancelReason);
+      if (res.success) {
+        setOrders((prev) =>
+          prev.map((o) => (o.id === cancelModalOrder.id ? { ...o, status: 'CANCELLED' as any } : o))
+        );
+        if (timelines[cancelModalOrder.id]) {
+          const tRes = await orderApi.getOrderTimeline(cancelModalOrder.id);
+          if (tRes.success) {
+            setTimelines((prev) => ({ ...prev, [cancelModalOrder.id]: tRes.data }));
+          }
+        }
+        showToast(`Order #${cancelModalOrder.orderNumber} successfully cancelled`, 'success');
+        setCancelModalOrder(null);
+      }
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || 'Failed to cancel order';
+      showToast(msg, 'error');
+    } finally {
+      setIsCancelling(false);
+    }
   };
 
   const filteredOrders = useMemo(() => {
@@ -223,6 +262,49 @@ export default function AdminOrdersPage() {
           <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
           <span>{refreshing ? 'Syncing...' : 'Sync Orders'}</span>
         </button>
+      </div>
+
+      {/* KPI Metric Strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--r-md)', background: 'var(--accent-light)', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ShoppingBag size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Total Orders</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--c-text-1)' }}>{orders.length}</div>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--r-md)', background: 'var(--warning-light)', color: 'var(--warning)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Clock size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Awaiting Fulfillment</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--warning)' }}>{readyCount + processingCount}</div>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--r-md)', background: 'var(--info-light)', color: 'var(--info)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Truck size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>In-Transit Logistics</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--info)' }}>{shippedCount}</div>
+          </div>
+        </div>
+
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{ width: 44, height: 44, borderRadius: 'var(--r-md)', background: 'var(--success-light)', color: 'var(--success)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <CheckCircle2 size={22} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Delivered</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--success)' }}>{deliveredCount}</div>
+          </div>
+        </div>
       </div>
 
       {/* Search & Filter Bar */}
@@ -418,7 +500,7 @@ export default function AdminOrdersPage() {
                     </div>
 
                     {/* Action Buttons */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                       {order.status === 'CONFIRMED' && (
                         <button
                           onClick={() => handleStatusUpdate(order.id, 'PROCESSING')}
@@ -471,6 +553,30 @@ export default function AdminOrdersPage() {
                         >
                           <CheckCircle2 size={13} />
                           <span>Mark Delivered</span>
+                        </button>
+                      )}
+
+                      {/* Cancel Order Button (Available for active non-final orders) */}
+                      {order.status !== 'CANCELLED' && order.status !== 'FAILED' && order.status !== 'DELIVERED' && (
+                        <button
+                          onClick={() => {
+                            setCancelModalOrder(order);
+                            setCancelReason('Cancelled by admin operator');
+                          }}
+                          className="glass-btn"
+                          style={{
+                            padding: '7px 14px',
+                            fontSize: 12,
+                            color: 'var(--danger)',
+                            borderColor: 'rgba(239, 68, 68, 0.35)',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 5,
+                          }}
+                          title="Cancel Order & Rollback Reservations"
+                        >
+                          <Ban size={13} />
+                          <span>Cancel Order</span>
                         </button>
                       )}
 
@@ -536,19 +642,35 @@ export default function AdminOrdersPage() {
                           border: '1px solid var(--border-subtle)',
                           display: 'flex',
                           flexDirection: 'column',
-                          gap: 8,
+                          gap: 10,
                           boxShadow: 'var(--glass-highlight)',
                         }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: 'var(--c-text-2)' }}>
-                          <MapPin size={15} color="var(--accent)" />
-                          <span>{order.shippingAddress || 'Standard Shipping Address'}</span>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, color: 'var(--c-text-2)' }}>
+                          <MapPin size={15} color="var(--accent)" style={{ marginTop: 2, flexShrink: 0 }} />
+                          <span style={{ lineHeight: 1.4 }}>{order.shippingAddress || 'Standard Shipping Address'}</span>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--c-text-3)' }}>
-                          Customer ID: <code style={{ color: 'var(--c-text-1)' }}>{order.userId}</code>
+
+                        {order.trackingNumber && (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: 'rgba(56, 189, 248, 0.10)', borderRadius: 'var(--r-sm)', border: '1px solid rgba(56, 189, 248, 0.25)' }}>
+                            <Truck size={14} color="var(--accent)" />
+                            <div style={{ fontSize: 12 }}>
+                              <span style={{ color: 'var(--c-text-3)' }}>Carrier: </span>
+                              <strong style={{ color: 'var(--c-text-1)' }}>{order.carrier || 'Logistics Partner'}</strong>
+                              <span style={{ margin: '0 6px', color: 'var(--border)' }}>•</span>
+                              <span style={{ color: 'var(--c-text-3)' }}>Tracking: </span>
+                              <code style={{ color: 'var(--accent)', fontWeight: 700 }}>{order.trackingNumber}</code>
+                            </div>
+                          </div>
+                        )}
+
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12, borderTop: '1px solid var(--border-subtle)', paddingTop: 8 }}>
+                          <span style={{ color: 'var(--c-text-3)' }}>Customer ID:</span>
+                          <code style={{ color: 'var(--c-text-1)', fontSize: 11 }}>{order.userId}</code>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--c-text-3)' }}>
-                          Order ID: <code style={{ color: 'var(--c-text-1)' }}>{order.id}</code>
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: 12 }}>
+                          <span style={{ color: 'var(--c-text-3)' }}>Order UUID:</span>
+                          <code style={{ color: 'var(--c-text-1)', fontSize: 11 }}>{order.id}</code>
                         </div>
                       </div>
                     </div>
@@ -709,20 +831,25 @@ export default function AdminOrdersPage() {
         )}
       </div>
 
-      {/* Dispatch & Shipping Modal */}
-      {shippingModalOrder && (
+      {/* Dispatch & Shipping Modal Portaled to Document Body */}
+      {shippingModalOrder && typeof document !== 'undefined' && createPortal(
         <div
           style={{
             position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(5, 10, 20, 0.70)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 24,
-            zIndex: 1000,
+            zIndex: 99999,
           }}
           onClick={() => setShippingModalOrder(null)}
         >
@@ -730,19 +857,19 @@ export default function AdminOrdersPage() {
             className="glass-panel"
             style={{
               width: '100%',
-              maxWidth: 520,
-              padding: 32,
+              maxWidth: 500,
+              padding: 30,
               boxShadow: 'var(--glass-hover-shadow), var(--glass-highlight)',
-              animation: 'scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              animation: 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
-                    width: 42,
-                    height: 42,
+                    width: 40,
+                    height: 40,
                     borderRadius: 'var(--r-md)',
                     background: 'var(--info-light)',
                     color: 'var(--info)',
@@ -752,10 +879,10 @@ export default function AdminOrdersPage() {
                     border: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <Truck size={22} />
+                  <Truck size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--c-text-1)' }}>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--c-text-1)' }}>
                     Dispatch & Ship Order
                   </h3>
                   <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontFamily: 'monospace' }}>
@@ -765,7 +892,7 @@ export default function AdminOrdersPage() {
               </div>
               <button
                 onClick={() => setShippingModalOrder(null)}
-                style={{ background: 'transparent', border: 'none', color: 'var(--c-text-3)', cursor: 'pointer', padding: 4 }}
+                style={{ background: 'transparent', border: 'none', color: 'var(--c-text-3)', cursor: 'pointer', padding: 6 }}
               >
                 <X size={20} />
               </button>
@@ -787,7 +914,7 @@ export default function AdminOrdersPage() {
                   className="glass-input"
                   style={{
                     width: '100%',
-                    padding: '11px 14px',
+                    padding: '10px 14px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: 13,
                   }}
@@ -829,7 +956,7 @@ export default function AdminOrdersPage() {
                   className="glass-input"
                   style={{
                     width: '100%',
-                    padding: '11px 14px',
+                    padding: '10px 14px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: 14,
                     fontFamily: 'monospace',
@@ -849,7 +976,7 @@ export default function AdminOrdersPage() {
                   className="glass-input"
                   style={{
                     width: '100%',
-                    padding: '11px 14px',
+                    padding: '10px 14px',
                     borderRadius: 'var(--radius-sm)',
                     fontSize: 13,
                     boxSizing: 'border-box',
@@ -862,7 +989,7 @@ export default function AdminOrdersPage() {
                   type="button"
                   onClick={() => setShippingModalOrder(null)}
                   className="glass-btn"
-                  style={{ flex: 1, padding: '12px' }}
+                  style={{ flex: 1, padding: '11px' }}
                 >
                   Cancel
                 </button>
@@ -872,7 +999,7 @@ export default function AdminOrdersPage() {
                   className="glass-btn-primary"
                   style={{
                     flex: 2,
-                    padding: '12px',
+                    padding: '11px',
                     fontSize: 13,
                     cursor: isUpdatingStatus ? 'not-allowed' : 'pointer',
                   }}
@@ -882,7 +1009,147 @@ export default function AdminOrdersPage() {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Cancel Order Confirmation Modal Portaled to Document Body */}
+      {cancelModalOrder && typeof document !== 'undefined' && createPortal(
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(5, 10, 20, 0.70)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+            zIndex: 99999,
+          }}
+          onClick={() => setCancelModalOrder(null)}
+        >
+          <div
+            className="glass-panel"
+            style={{
+              width: '100%',
+              maxWidth: 480,
+              padding: 30,
+              boxShadow: 'var(--glass-hover-shadow), var(--glass-highlight)',
+              animation: 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <div
+                  style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 'var(--r-md)',
+                    background: 'var(--danger-light)',
+                    color: 'var(--danger)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <AlertTriangle size={20} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--c-text-1)' }}>
+                    Cancel Order
+                  </h3>
+                  <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontFamily: 'monospace' }}>
+                    #{cancelModalOrder.orderNumber}
+                  </span>
+                </div>
+              </div>
+              <button
+                onClick={() => setCancelModalOrder(null)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--c-text-3)', cursor: 'pointer', padding: 6 }}
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div
+              style={{
+                padding: '12px 14px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'rgba(239, 68, 68, 0.08)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                color: 'var(--c-text-1)',
+                fontSize: 13,
+                marginBottom: 18,
+                lineHeight: 1.5,
+              }}
+            >
+              Are you sure you want to cancel order <strong>#{cancelModalOrder.orderNumber}</strong>?
+              This will publish an <code>ORDER_CANCELLED</code> Kafka event, triggering Saga compensation to release inventory locks.
+            </div>
+
+            <form onSubmit={handleCancelOrder}>
+              <div style={{ marginBottom: 22 }}>
+                <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Cancellation Reason
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={cancelReason}
+                  onChange={(e) => setCancelReason(e.target.value)}
+                  className="glass-input"
+                  style={{
+                    width: '100%',
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: 13,
+                    boxSizing: 'border-box',
+                  }}
+                  placeholder="Provide reason for cancellation..."
+                />
+              </div>
+
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  type="button"
+                  onClick={() => setCancelModalOrder(null)}
+                  className="glass-btn"
+                  style={{ flex: 1, padding: '11px' }}
+                >
+                  Keep Order
+                </button>
+                <button
+                  type="submit"
+                  disabled={isCancelling}
+                  style={{
+                    flex: 2,
+                    padding: '11px',
+                    fontSize: 13,
+                    fontWeight: 700,
+                    borderRadius: 'var(--r-full)',
+                    background: 'var(--danger)',
+                    color: '#fff',
+                    border: 'none',
+                    cursor: isCancelling ? 'not-allowed' : 'pointer',
+                    boxShadow: '0 4px 14px rgba(220, 38, 38, 0.35)',
+                  }}
+                >
+                  {isCancelling ? 'Cancelling & Rolling Back...' : 'Confirm Order Cancellation'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>,
+        document.body
       )}
     </div>
   );
