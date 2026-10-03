@@ -60,6 +60,13 @@ export default function CheckoutPage() {
       .catch(() => {});
   }, []);
 
+  // When order is placed successfully, reset window scroll to top of page
+  useEffect(() => {
+    if (success) {
+      window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    }
+  }, [success]);
+
   if (!user) {
     return (
       <div style={styles.messageContainer}>
@@ -152,6 +159,7 @@ export default function CheckoutPage() {
 
       const finalId = response.data?.id || response.data?.orderNumber || 'ORD-' + Date.now();
       setPlacedOrderId(finalId);
+      window.scrollTo(0, 0);
       setSuccess(true);
       clearCart();
       showToast('Your order has been confirmed and submitted to dispatch.', 'success', 'Order Confirmed');
