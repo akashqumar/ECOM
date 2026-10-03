@@ -18,6 +18,21 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      // Clear expired or invalidated token from local storage
+      const token = localStorage.getItem('token');
+      if (token) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const authApi = {
   login: async (email: string, password: string):Promise<ApiResponse<AuthResponse>> => {
     const res = await api.post('/auth/login', { email, password });

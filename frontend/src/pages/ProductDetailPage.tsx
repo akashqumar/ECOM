@@ -64,28 +64,21 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product || isAdding) return;
-
-    // If already added with this exact quantity, clicking directs user to Bag
-    if (addedQuantity === quantity) {
-      navigate('/cart');
-      return;
-    }
     
     setIsAdding(true);
     try {
       await addItem({
         id: product.id,
         name: product.name,
-        price: product.price,
-        images: product.images,
-        sku: product.sku
+        price: product.discountPrice ?? product.price,
+        images: images,
+        sku: product.sku || `SKU-${product.id.slice(0, 8)}`
       }, quantity);
       
-      setAddedQuantity(quantity);
       setAddSuccess(true);
       setTimeout(() => {
         setAddSuccess(false);
-      }, 1500);
+      }, 1800);
     } catch (err) {
       console.error('Failed to add to cart', err);
     } finally {
@@ -780,27 +773,19 @@ export default function ProductDetailPage() {
             </div>
 
             <button 
-              className={`add-to-bag-main ${addedQuantity === quantity ? 'in-bag' : ''}`}
+              className={`add-to-bag-main ${addSuccess ? 'success' : ''}`}
               onClick={handleAddToCart}
               disabled={isAdding}
-              title={addedQuantity === quantity ? 'Item is already in your bag. Click to view bag.' : 'Add to Bag'}
             >
               {isAdding ? (
                 <div className="spinner" style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
               ) : addSuccess ? (
                 <>
                   <Check size={20} />
-                  Added to Bag!
+                  <span>Added to Bag!</span>
                 </>
-              ) : addedQuantity === quantity ? (
-                <>
-                  <Check size={18} />
-                  <span>In Bag &bull; View Bag &rarr;</span>
-                </>
-              ) : addedQuantity !== null ? (
-                <span>Update Bag ({quantity})</span>
               ) : (
-                'Add to Bag'
+                <span>Add to Bag &bull; ${(((product.discountPrice ?? product.price) * quantity)).toFixed(2)}</span>
               )}
             </button>
 

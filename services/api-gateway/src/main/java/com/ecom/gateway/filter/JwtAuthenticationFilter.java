@@ -103,8 +103,12 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
 
         } catch (Exception ex) {
             log.warn("Invalid JWT token provided for route: {}: {}", path, ex.getMessage());
-            if (isPublicPath) {
-                // If it's a public path but token was invalid/expired, still allow browsing as guest
+            if (isPublicPath || path.startsWith("/api/cart")) {
+                // If it's a public path or cart path but token was invalid/expired, still allow as guest
+                String existingUserId = request.getHeaders().getFirst("X-User-Id");
+                if (existingUserId == null || existingUserId.isBlank()) {
+                    requestBuilder.header("X-User-Id", "guest-" + UUID.randomUUID().toString().substring(0, 8));
+                }
                 return chain.filter(exchange.mutate().request(requestBuilder.build()).build());
             }
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);

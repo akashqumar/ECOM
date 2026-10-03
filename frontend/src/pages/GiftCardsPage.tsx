@@ -61,11 +61,6 @@ export default function GiftCardsPage() {
     e.preventDefault();
     if (finalAmount < 10) return;
 
-    if (isCardAlreadyInBag) {
-      navigate('/cart');
-      return;
-    }
-
     addItem({
       id: `gift-card-${finalAmount}-${Date.now()}`,
       name: `Lumé Digital Gift Card — $${finalAmount}`,
@@ -74,7 +69,6 @@ export default function GiftCardsPage() {
       sku: `GC-${cardTheme.toUpperCase()}-${finalAmount}`
     }, 1);
 
-    setLastAddedConfigHash(currentConfigHash);
     setAdded(true);
     setTimeout(() => setAdded(false), 2200);
   };
@@ -345,15 +339,10 @@ export default function GiftCardsPage() {
                       <Check size={18} />
                       <span>Added to Bag!</span>
                     </>
-                  ) : isCardAlreadyInBag ? (
-                    <>
-                      <Check size={18} />
-                      <span>In Bag &bull; View Bag &rarr;</span>
-                    </>
                   ) : (
                     <>
                       <ShoppingBag size={18} />
-                      <span>Add to Bag — ${finalAmount}</span>
+                      <span>Add to Bag &bull; ${finalAmount}</span>
                     </>
                   )}
                 </button>

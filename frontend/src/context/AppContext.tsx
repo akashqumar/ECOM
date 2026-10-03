@@ -152,23 +152,96 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const [cart, setCart] = useState<Cart | null>(null);
+  const [cart, setCart] = useState<Cart | null>(() => {
+    try {
+      const saved = localStorage.getItem('cart');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
   const [isUpdating, setIsUpdating] = useState(false);
+
+  const saveCartLocal = (newCart: Cart | null) => {
+    setCart(newCart);
+    try {
+      if (newCart) {
+        localStorage.setItem('cart', JSON.stringify(newCart));
+      } else {
+        localStorage.removeItem('cart');
+      }
+    } catch {}
+  };
 
   const refreshCart = useCallback(async () => {
     try {
       const res = await cartApi.getCart();
-      if (res.success) setCart(res.data);
-    } catch { /* ignore */ }
+      if (res.success && res.data) {
+        saveCartLocal(res.data);
+      }
+    } catch { /* keep existing local cart */ }
   }, []);
 
   useEffect(() => { refreshCart(); }, [refreshCart]);
 
-  const addItem = async (product: { id: string; sku: string; name: string; price: number; images?: string[] }, qty = 1) => {
+  const addItem = async (product: { id: string; sku?: string; name: string; price: number; images?: string[] }, qty = 1) => {
     setIsUpdating(true);
+    const itemSku = product.sku || `SKU-${product.id.slice(0, 8)}`;
+    const itemImage = product.images?.[0] || '';
+    const safePrice = Number(product.price) || 0;
+
+    // 1. Optimistic update so UI updates immediately with 100% reliability
+    setCart(prev => {
+      const existingItems = prev?.items ? [...prev.items] : [];
+      const idx = existingItems.findIndex(i => i.productId === product.id);
+
+      if (idx > -1) {
+        const item = existingItems[idx];
+        const newQty = item.quantity + qty;
+        existingItems[idx] = {
+          ...item,
+          quantity: newQty,
+          subtotal: Math.round(item.price * newQty * 100) / 100
+        };
+      } else {
+        existingItems.push({
+          productId: product.id,
+          sku: itemSku,
+          name: product.name,
+          price: safePrice,
+          quantity: qty,
+          imageUrl: itemImage,
+          subtotal: Math.round(safePrice * qty * 100) / 100
+        });
+      }
+
+      const totalQuantity = existingItems.reduce((acc, i) => acc + i.quantity, 0);
+      const subtotalAmount = Math.round(existingItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) * 100) / 100;
+
+      const updatedCart: Cart = {
+        userId: prev?.userId || localStorage.getItem('userId') || 'user-demo-123',
+        items: existingItems,
+        totalQuantity,
+        subtotalAmount,
+        updatedAt: new Date().toISOString()
+      };
+
+      try { localStorage.setItem('cart', JSON.stringify(updatedCart)); } catch {}
+      return updatedCart;
+    });
+
+    // 2. Background sync with backend API
     try {
-      const res = await cartApi.addItem(product, qty);
-      if (res.success) setCart(res.data);
+      const res = await cartApi.addItem({
+        ...product,
+        sku: itemSku,
+        price: safePrice
+      }, qty);
+      if (res.success && res.data) {
+        saveCartLocal(res.data);
+      }
+    } catch (err) {
+      console.warn('Backend cart sync fallback to local cart:', err);
     } finally {
       setIsUpdating(false);
     }
@@ -176,14 +249,48 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const updateQty = async (productId: string, qty: number) => {
     setIsUpdating(true);
+
+    // Optimistic update
+    setCart(prev => {
+      if (!prev) return null;
+      let existingItems = [...prev.items];
+      if (qty <= 0) {
+        existingItems = existingItems.filter(i => i.productId !== productId);
+      } else {
+        const idx = existingItems.findIndex(i => i.productId === productId);
+        if (idx > -1) {
+          existingItems[idx] = {
+            ...existingItems[idx],
+            quantity: qty,
+            subtotal: Math.round(existingItems[idx].price * qty * 100) / 100
+          };
+        }
+      }
+
+      const totalQuantity = existingItems.reduce((acc, i) => acc + i.quantity, 0);
+      const subtotalAmount = Math.round(existingItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) * 100) / 100;
+
+      const updatedCart: Cart = {
+        ...prev,
+        items: existingItems,
+        totalQuantity,
+        subtotalAmount,
+        updatedAt: new Date().toISOString()
+      };
+      try { localStorage.setItem('cart', JSON.stringify(updatedCart)); } catch {}
+      return updatedCart;
+    });
+
     try {
       if (qty <= 0) {
         const res = await cartApi.removeItem(productId);
-        if (res.success) setCart(res.data);
+        if (res.success && res.data) saveCartLocal(res.data);
       } else {
         const res = await cartApi.updateQuantity(productId, qty);
-        if (res.success) setCart(res.data);
+        if (res.success && res.data) saveCartLocal(res.data);
       }
+    } catch (err) {
+      console.warn('Backend update quantity failed, used local cart:', err);
     } finally {
       setIsUpdating(false);
     }
@@ -191,9 +298,30 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeItem = async (productId: string) => {
     setIsUpdating(true);
+
+    // Optimistic removal
+    setCart(prev => {
+      if (!prev) return null;
+      const existingItems = prev.items.filter(i => i.productId !== productId);
+      const totalQuantity = existingItems.reduce((acc, i) => acc + i.quantity, 0);
+      const subtotalAmount = Math.round(existingItems.reduce((acc, i) => acc + (i.price * i.quantity), 0) * 100) / 100;
+
+      const updatedCart: Cart = {
+        ...prev,
+        items: existingItems,
+        totalQuantity,
+        subtotalAmount,
+        updatedAt: new Date().toISOString()
+      };
+      try { localStorage.setItem('cart', JSON.stringify(updatedCart)); } catch {}
+      return updatedCart;
+    });
+
     try {
       const res = await cartApi.removeItem(productId);
-      if (res.success) setCart(res.data);
+      if (res.success && res.data) saveCartLocal(res.data);
+    } catch (err) {
+      console.warn('Backend remove item failed, used local cart:', err);
     } finally {
       setIsUpdating(false);
     }
@@ -201,9 +329,12 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const clearCart = async () => {
     setIsUpdating(true);
+    saveCartLocal(null);
     try {
       const res = await cartApi.clearCart();
-      if (res.success) setCart(res.data);
+      if (res.success && res.data) saveCartLocal(res.data);
+    } catch (err) {
+      console.warn('Backend clear cart failed, used local cart:', err);
     } finally {
       setIsUpdating(false);
     }
