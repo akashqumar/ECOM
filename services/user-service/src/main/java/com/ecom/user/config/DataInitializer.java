@@ -64,21 +64,21 @@ public class DataInitializer implements CommandLineRunner {
 
         userRepository.findByEmail("admin@example.com").ifPresentOrElse(
                 admin -> {
-                    admin.setPasswordHash(passwordEncoder.encode("admin123"));
+                    admin.setPasswordHash(passwordEncoder.encode("password123"));
                     admin.setRole("ROLE_ADMIN");
                     userRepository.save(admin);
                 },
                 () -> {
                     User demoAdmin = new User(
                             "admin@example.com",
-                            passwordEncoder.encode("admin123"),
+                            passwordEncoder.encode("password123"),
                             "Platform",
                             "Administrator",
                             "+1 (555) 999-0000",
                             "ROLE_ADMIN"
                     );
                     userRepository.save(demoAdmin);
-                    log.info("Initialized demo admin account: admin@example.com / admin123");
+                    log.info("Initialized demo admin account: admin@example.com / password123");
                 }
         );
     }
