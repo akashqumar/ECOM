@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Package, Search, RefreshCw, Star } from 'lucide-react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { Package, Search, RefreshCw, Star, ChevronLeft, ChevronRight } from 'lucide-react';
 import { catalogApi } from '../services/api';
 import type { Product } from '../types';
 
@@ -9,6 +9,8 @@ export default function AdminProductsPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(12);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -35,14 +37,28 @@ export default function AdminProductsPage() {
     loadData();
   }, [loadData]);
 
-  const filteredProducts = products.filter((p) => {
-    if (selectedCategory && p.categoryId !== selectedCategory) return false;
-    if (searchTerm.trim()) {
-      const q = searchTerm.toLowerCase();
-      return p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
-    }
-    return true;
-  });
+  // Reset to page 1 when filter/search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, selectedCategory, pageSize]);
+
+  const filteredProducts = useMemo(() => {
+    return products.filter((p) => {
+      if (selectedCategory && p.categoryId !== selectedCategory) return false;
+      if (searchTerm.trim()) {
+        const q = searchTerm.toLowerCase();
+        return p.name.toLowerCase().includes(q) || p.sku.toLowerCase().includes(q) || p.brand.toLowerCase().includes(q);
+      }
+      return true;
+    });
+  }, [products, selectedCategory, searchTerm]);
+
+  const totalItems = filteredProducts.length;
+  const totalPages = Math.ceil(totalItems / pageSize) || 1;
+  const paginatedProducts = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filteredProducts.slice(start, start + pageSize);
+  }, [filteredProducts, currentPage, pageSize]);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="animate-fade-in">
@@ -102,26 +118,47 @@ export default function AdminProductsPage() {
           />
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 13, color: 'var(--c-text-2)', fontWeight: 600 }}>Category:</span>
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="glass-input"
-            style={{
-              padding: '8px 14px',
-              borderRadius: 'var(--radius-sm)',
-              fontSize: 13,
-              fontWeight: 500,
-            }}
-          >
-            <option value="">All Categories ({products.length})</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 13, color: 'var(--c-text-2)', fontWeight: 600 }}>Category:</span>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="glass-input"
+              style={{
+                padding: '8px 14px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 13,
+                fontWeight: 500,
+              }}
+            >
+              <option value="">All Categories ({products.length})</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 600 }}>Per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="glass-input"
+              style={{
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: 12,
+                fontWeight: 600,
+              }}
+            >
+              <option value={12}>12</option>
+              <option value={24}>24</option>
+              <option value={48}>48</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -148,7 +185,7 @@ export default function AdminProductsPage() {
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>No products found</div>
           </div>
         ) : (
-          filteredProducts.map((product) => (
+          paginatedProducts.map((product) => (
             <div
               key={product.id}
               className="glass-panel glass-panel-hover"
@@ -221,6 +258,64 @@ export default function AdminProductsPage() {
           ))
         )}
       </div>
+
+      {/* Pagination Bar */}
+      {totalItems > 0 && (
+        <div className="pagination-container">
+          <div style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 500 }}>
+            Showing <strong style={{ color: 'var(--c-text-1)' }}>{(currentPage - 1) * pageSize + 1}</strong> to{' '}
+            <strong style={{ color: 'var(--c-text-1)' }}>{Math.min(currentPage * pageSize, totalItems)}</strong> of{' '}
+            <strong style={{ color: 'var(--c-text-1)' }}>{totalItems}</strong> Products
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+              className="pagination-btn"
+              title="Previous page"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            {Array.from({ length: totalPages }).map((_, idx) => {
+              const pageNum = idx + 1;
+              if (
+                pageNum === 1 ||
+                pageNum === totalPages ||
+                (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+              ) {
+                return (
+                  <button
+                    key={pageNum}
+                    onClick={() => setCurrentPage(pageNum)}
+                    className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                  >
+                    {pageNum}
+                  </button>
+                );
+              }
+              if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                return (
+                  <span key={pageNum} style={{ color: 'var(--c-text-3)', padding: '0 4px', fontSize: 12 }}>
+                    ...
+                  </span>
+                );
+              }
+              return null;
+            })}
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={currentPage === totalPages}
+              className="pagination-btn"
+              title="Next page"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

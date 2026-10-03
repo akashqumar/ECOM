@@ -11,7 +11,9 @@ import {
   ChevronUp,
   MapPin,
   Calendar,
-  Layers
+  Layers,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { orderApi } from '../services/api';
 import type { Order, OrderTimeline } from '../types';
@@ -25,6 +27,10 @@ export default function AdminOrdersPage() {
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [timelines, setTimelines] = useState<Record<string, OrderTimeline>>({});
   const [loadingTimelines, setLoadingTimelines] = useState<Record<string, boolean>>({});
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Shipping Modal State
   const [shippingModalOrder, setShippingModalOrder] = useState<Order | null>(null);
@@ -43,7 +49,7 @@ export default function AdminOrdersPage() {
     if (!silent) setLoading(true);
     setRefreshing(true);
     try {
-      const res = await orderApi.getAllOrders({ size: 50 });
+      const res = await orderApi.getAllOrders({ size: 100 });
       if (res.success && res.data?.content) {
         setOrders(res.data.content);
       }
@@ -59,6 +65,11 @@ export default function AdminOrdersPage() {
   useEffect(() => {
     loadOrders();
   }, [loadOrders]);
+
+  // Reset page when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, pageSize]);
 
   const toggleTimeline = async (orderId: string) => {
     if (expandedOrderId === orderId) {
@@ -149,6 +160,13 @@ export default function AdminOrdersPage() {
     });
   }, [orders, searchTerm, statusFilter]);
 
+  const totalOrders = filteredOrders.length;
+  const totalPages = Math.max(1, Math.ceil(totalOrders / pageSize));
+  const paginatedOrders = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredOrders.slice(startIndex, startIndex + pageSize);
+  }, [filteredOrders, currentPage, pageSize]);
+
   const readyCount = orders.filter((o) => o.status === 'CONFIRMED' || o.status === 'PAID').length;
   const processingCount = orders.filter((o) => o.status === 'PROCESSING').length;
   const shippedCount = orders.filter((o) => o.status === 'SHIPPED').length;
@@ -217,7 +235,7 @@ export default function AdminOrdersPage() {
           gap: 14,
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
           <div style={{ position: 'relative', flex: 1, maxWidth: 460 }}>
             <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-text-3)' }} />
             <input
@@ -234,6 +252,26 @@ export default function AdminOrdersPage() {
                 boxSizing: 'border-box',
               }}
             />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 600 }}>Per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="glass-input"
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--r-sm)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
           </div>
         </div>
 
@@ -298,14 +336,14 @@ export default function AdminOrdersPage() {
               <div className="skeleton" style={{ height: 16, width: '50%' }} />
             </div>
           ))
-        ) : filteredOrders.length === 0 ? (
+        ) : paginatedOrders.length === 0 ? (
           <div className="glass-panel" style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--c-text-3)' }}>
             <Package size={48} style={{ margin: '0 auto 14px', opacity: 0.3 }} />
             <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--c-text-1)' }}>No orders match this filter</div>
             <div style={{ fontSize: 13, marginTop: 4 }}>Try clearing your search query or switching to another status tab.</div>
           </div>
         ) : (
-          filteredOrders.map((order) => {
+          paginatedOrders.map((order) => {
             const isExpanded = expandedOrderId === order.id;
             const timelineData = timelines[order.id];
             const isLoadingTimeline = loadingTimelines[order.id];
@@ -610,6 +648,64 @@ export default function AdminOrdersPage() {
               </div>
             );
           })
+        )}
+
+        {/* Pagination Bar */}
+        {totalOrders > 0 && (
+          <div className="glass-panel pagination-container" style={{ borderRadius: 'var(--radius)' }}>
+            <div style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 500 }}>
+              Showing <strong style={{ color: 'var(--c-text-1)' }}>{(currentPage - 1) * pageSize + 1}</strong> to{' '}
+              <strong style={{ color: 'var(--c-text-1)' }}>{Math.min(currentPage * pageSize, totalOrders)}</strong> of{' '}
+              <strong style={{ color: 'var(--c-text-1)' }}>{totalOrders}</strong> orders
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="pagination-btn"
+                title="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const pageNum = idx + 1;
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                }
+                if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                  return (
+                    <span key={pageNum} style={{ color: 'var(--c-text-3)', padding: '0 4px', fontSize: 12 }}>
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="pagination-btn"
+                title="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
         )}
       </div>
 

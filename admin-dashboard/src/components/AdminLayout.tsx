@@ -11,8 +11,7 @@ import {
   LogOut,
   Menu,
   X,
-  ExternalLink,
-  Sparkles
+  ExternalLink
 } from 'lucide-react';
 import { useAdmin } from '../context/AdminContext';
 
@@ -37,7 +36,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', position: 'relative', zIndex: 1 }}>
-      {/* Desktop Sidebar */}
+      {/* Desktop Sidebar with Fixed Height and Contained Scroll */}
       <aside
         style={{
           width: 270,
@@ -51,13 +50,15 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           position: 'sticky',
           top: 0,
           height: '100vh',
+          maxHeight: '100vh',
           flexShrink: 0,
           zIndex: 40,
+          overflow: 'hidden',
         }}
         className="admin-desktop-sidebar"
       >
-        {/* Brand */}
-        <div style={{ padding: '24px 20px', borderBottom: '1px solid var(--border-subtle)' }}>
+        {/* Brand Header */}
+        <div style={{ padding: '22px 20px', borderBottom: '1px solid var(--border-subtle)', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div
               style={{
@@ -70,6 +71,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 justifyContent: 'center',
                 boxShadow: '0 4px 16px var(--accent-glow)',
                 border: '1px solid rgba(255, 255, 255, 0.4)',
+                flexShrink: 0,
               }}
             >
               <div
@@ -101,89 +103,94 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                   OPS
                 </span>
               </div>
-              <div style={{ fontSize: 11, color: 'var(--c-text-3)', fontWeight: 600, letterSpacing: '0.06em' }}>
+              <div style={{ fontSize: 10, color: 'var(--c-text-3)', fontWeight: 600, letterSpacing: '0.06em' }}>
                 AERO ENTERPRISE CONSOLE
               </div>
             </div>
           </div>
         </div>
 
-        {/* Navigation links */}
-        <nav style={{ padding: '16px 14px', flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {navItems.map((item) => {
-            const isActive = location.pathname === item.href;
-            const Icon = item.icon;
-            return (
-              <Link
-                key={item.href}
-                to={item.href}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 12,
-                  padding: '11px 16px',
-                  borderRadius: 'var(--radius-sm)',
-                  textDecoration: 'none',
-                  fontSize: 13,
-                  fontWeight: isActive ? 700 : 500,
-                  color: isActive ? '#FFFFFF' : 'var(--c-text-2)',
-                  background: isActive
-                    ? 'linear-gradient(135deg, var(--accent) 0%, #1D4ED8 100%)'
-                    : 'transparent',
-                  border: isActive ? '1px solid rgba(255,255,255,0.25)' : '1px solid transparent',
-                  transition: 'all var(--transition)',
-                  boxShadow: isActive ? '0 6px 18px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.3)' : 'none',
-                }}
-                className={!isActive ? 'glass-panel-hover' : ''}
-              >
-                <Icon size={18} color={isActive ? '#FFFFFF' : 'var(--c-text-2)'} />
-                <span>{item.label}</span>
-              </Link>
-            );
-          })}
-        </nav>
+        {/* Scrollable Navigation Body */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', padding: '14px 12px', gap: 6 }}>
+          <nav style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {navItems.map((item) => {
+              const isActive = location.pathname === item.href;
+              const Icon = item.icon;
+              return (
+                <Link
+                  key={item.href}
+                  to={item.href}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 12,
+                    padding: '10px 14px',
+                    borderRadius: 'var(--radius-sm)',
+                    textDecoration: 'none',
+                    fontSize: 13,
+                    fontWeight: isActive ? 700 : 500,
+                    color: isActive ? '#FFFFFF' : 'var(--c-text-2)',
+                    background: isActive
+                      ? 'linear-gradient(135deg, var(--accent) 0%, #1D4ED8 100%)'
+                      : 'transparent',
+                    border: isActive ? '1px solid rgba(255,255,255,0.25)' : '1px solid transparent',
+                    transition: 'all var(--transition)',
+                    boxShadow: isActive ? '0 6px 18px var(--accent-glow), inset 0 1px 0 rgba(255,255,255,0.3)' : 'none',
+                  }}
+                  className={!isActive ? 'glass-panel-hover' : ''}
+                >
+                  <Icon size={18} color={isActive ? '#FFFFFF' : 'var(--c-text-2)'} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </nav>
 
-        {/* Kafka Saga Telemetry Aero Badge */}
-        <div
-          style={{
-            padding: '14px 16px',
-            margin: '12px 14px',
-            background: 'var(--glass-bg)',
-            borderRadius: 'var(--radius)',
-            border: '1px solid var(--glass-border)',
-            boxShadow: 'var(--glass-highlight)',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--success)' }}>
-            <span
-              style={{
-                width: 8,
-                height: 8,
-                borderRadius: '50%',
-                background: 'var(--success)',
-                display: 'inline-block',
-                boxShadow: '0 0 8px var(--success)',
-              }}
-            />
-            <span>KAFKA SAGA ENGINE</span>
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--c-text-3)', marginTop: 4, lineHeight: 1.4 }}>
-            Sub-second distributed locks & event stream telemetry active
+          {/* Kafka Saga Telemetry Aero Badge */}
+          <div
+            style={{
+              padding: '12px 14px',
+              marginTop: 'auto',
+              marginBottom: 4,
+              background: 'var(--glass-bg)',
+              borderRadius: 'var(--radius)',
+              border: '1px solid var(--glass-border)',
+              boxShadow: 'var(--glass-highlight)',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, fontWeight: 700, color: 'var(--success)' }}>
+              <span
+                style={{
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: 'var(--success)',
+                  display: 'inline-block',
+                  boxShadow: '0 0 8px var(--success)',
+                  flexShrink: 0,
+                }}
+              />
+              <span>KAFKA SAGA ENGINE</span>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--c-text-3)', marginTop: 4, lineHeight: 1.35 }}>
+              Distributed locks & outbox stream active
+            </div>
           </div>
         </div>
 
-        {/* User Card & Sign Out */}
+        {/* User Card & Sign Out (Pinned at Bottom of Sidebar) */}
         <div
           style={{
-            padding: '16px',
+            padding: '14px 16px',
             borderTop: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             background: 'var(--glass-bg)',
+            flexShrink: 0,
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
             <div
               style={{
                 width: 34,
@@ -198,12 +205,13 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 fontSize: 13,
                 border: '1px solid var(--accent)',
                 boxShadow: '0 0 10px var(--accent-glow)',
+                flexShrink: 0,
               }}
             >
               {user?.firstName?.[0] || 'L'}
             </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)' }}>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--c-text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user?.firstName} {user?.lastName}
               </div>
               <div style={{ fontSize: 10, color: 'var(--c-text-3)', fontFamily: 'monospace' }}>
@@ -225,6 +233,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               alignItems: 'center',
               justifyContent: 'center',
               transition: 'background var(--transition)',
+              flexShrink: 0,
             }}
           >
             <LogOut size={16} />
@@ -233,7 +242,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content Area */}
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflowX: 'hidden' }}>
         {/* Top Header Bar */}
         <header
           style={{
@@ -246,7 +255,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            padding: '0 28px',
+            padding: '0 24px',
             position: 'sticky',
             top: 0,
             zIndex: 30,
@@ -269,8 +278,8 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             <Menu size={22} />
           </button>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--c-text-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
               Fulfillment Hub:
             </span>
             <span
@@ -326,7 +335,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
                 background: 'var(--glass-bg)',
                 backdropFilter: 'var(--glass-blur)',
                 boxShadow: 'var(--glass-highlight)',
-                color: 'var(--c-text-2)',
+                color: 'var(--c-text-1)',
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
@@ -335,7 +344,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
               }}
               title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
             >
-              {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+              {theme === 'dark' ? <Sun size={18} color="#FBBF24" /> : <Moon size={18} color="#475569" />}
             </button>
           </div>
         </header>
@@ -344,7 +353,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
         <main
           style={{
             flex: 1,
-            padding: '28px',
+            padding: '24px clamp(16px, 2.5vw, 28px)',
             maxWidth: 1440,
             width: '100%',
             margin: '0 auto',

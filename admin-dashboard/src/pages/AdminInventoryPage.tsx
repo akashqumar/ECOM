@@ -8,7 +8,9 @@ import {
   Warehouse,
   Lock,
   Package,
-  X
+  X,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { inventoryApi, catalogApi } from '../services/api';
 import { useAdmin } from '../context/AdminContext';
@@ -24,6 +26,10 @@ export default function AdminInventoryPage() {
   const [statusFilter, setStatusFilter] = useState<'all' | 'healthy' | 'low' | 'out' | 'reserved'>('all');
   const [sortField] = useState<'available' | 'reserved' | 'total' | 'name'>('available');
   const [sortOrder] = useState<'asc' | 'desc'>('asc');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Modal State
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null);
@@ -67,6 +73,11 @@ export default function AdminInventoryPage() {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Reset to first page when search or filter changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, statusFilter, pageSize]);
 
   const handleQuickAdjust = async (productId: string, delta: number, e?: React.MouseEvent) => {
     if (e) e.stopPropagation();
@@ -151,12 +162,19 @@ export default function AdminInventoryPage() {
       });
   }, [combinedItems, searchTerm, statusFilter, sortField, sortOrder, threshold]);
 
+  const totalItems = filteredItems.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
+  const paginatedItems = useMemo(() => {
+    const startIndex = (currentPage - 1) * pageSize;
+    return filteredItems.slice(startIndex, startIndex + pageSize);
+  }, [filteredItems, currentPage, pageSize]);
+
   const lowCount = combinedItems.filter((i) => i.availableQuantity > 0 && i.availableQuantity < threshold).length;
   const outCount = combinedItems.filter((i) => i.availableQuantity === 0).length;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }} className="animate-fade-in">
-      {/* Toast */}
+      {/* Toast Notification */}
       {toastMessage && (
         <div
           style={{
@@ -218,7 +236,7 @@ export default function AdminInventoryPage() {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 14 }}>
-          <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 440 }}>
+          <div style={{ position: 'relative', flex: '1 1 300px', maxWidth: 460 }}>
             <Search size={16} style={{ position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)', color: 'var(--c-text-3)' }} />
             <input
               type="text"
@@ -234,6 +252,26 @@ export default function AdminInventoryPage() {
                 boxSizing: 'border-box',
               }}
             />
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 600 }}>Per page:</span>
+            <select
+              value={pageSize}
+              onChange={(e) => setPageSize(Number(e.target.value))}
+              className="glass-input"
+              style={{
+                padding: '6px 12px',
+                borderRadius: 'var(--r-sm)',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
           </div>
         </div>
 
@@ -297,7 +335,7 @@ export default function AdminInventoryPage() {
         }}
       >
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', fontSize: 13, minWidth: 840 }}>
             <thead>
               <tr
                 style={{
@@ -310,14 +348,14 @@ export default function AdminInventoryPage() {
                   letterSpacing: '0.06em',
                 }}
               >
-                <th style={{ padding: '16px 20px' }}>Product</th>
-                <th style={{ padding: '16px 16px' }}>SKU</th>
-                <th style={{ padding: '16px 16px' }}>Warehouse</th>
-                <th style={{ padding: '16px 16px' }}>Available</th>
-                <th style={{ padding: '16px 16px' }}>Reserved</th>
-                <th style={{ padding: '16px 16px' }}>Total</th>
-                <th style={{ padding: '16px 16px' }}>Health</th>
-                <th style={{ padding: '16px 20px', textAlign: 'right' }}>Atomic Actions</th>
+                <th style={{ padding: '16px 20px', minWidth: 260 }}>Product</th>
+                <th style={{ padding: '16px 16px', minWidth: 120 }}>SKU</th>
+                <th style={{ padding: '16px 16px', minWidth: 140 }}>Warehouse</th>
+                <th style={{ padding: '16px 16px', minWidth: 90 }}>Available</th>
+                <th style={{ padding: '16px 16px', minWidth: 120 }}>Reserved</th>
+                <th style={{ padding: '16px 16px', minWidth: 80 }}>Total</th>
+                <th style={{ padding: '16px 16px', minWidth: 120 }}>Health</th>
+                <th style={{ padding: '16px 20px', textAlign: 'right', minWidth: 210 }}>Atomic Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -327,7 +365,7 @@ export default function AdminInventoryPage() {
                     <td colSpan={8} style={{ padding: '16px 20px' }}><div className="skeleton" style={{ height: 20 }} /></td>
                   </tr>
                 ))
-              ) : filteredItems.length === 0 ? (
+              ) : paginatedItems.length === 0 ? (
                 <tr>
                   <td colSpan={8} style={{ padding: '60px 20px', textAlign: 'center', color: 'var(--c-text-3)' }}>
                     <Package size={44} style={{ margin: '0 auto 12px', opacity: 0.3 }} />
@@ -335,7 +373,7 @@ export default function AdminInventoryPage() {
                   </td>
                 </tr>
               ) : (
-                filteredItems.map((item) => {
+                paginatedItems.map((item) => {
                   const product = item.product;
                   const isZero = item.availableQuantity === 0;
                   const isLow = item.availableQuantity > 0 && item.availableQuantity < threshold;
@@ -368,8 +406,8 @@ export default function AdminInventoryPage() {
                               <Package size={18} color="var(--c-text-3)" />
                             )}
                           </div>
-                          <div>
-                            <div style={{ fontWeight: 600, color: 'var(--c-text-1)' }}>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, color: 'var(--c-text-1)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>
                               {product?.name || `Product: ${item.productId.slice(0, 8)}...`}
                             </div>
                             <div style={{ fontSize: 11, color: 'var(--c-text-3)' }}>
@@ -378,10 +416,10 @@ export default function AdminInventoryPage() {
                           </div>
                         </div>
                       </td>
-                      <td style={{ padding: '14px 16px', fontFamily: 'monospace', fontSize: 12, color: 'var(--c-text-2)' }}>
+                      <td style={{ padding: '14px 16px', fontFamily: 'monospace', fontSize: 12, color: 'var(--c-text-2)', whiteSpace: 'nowrap' }}>
                         {product?.sku || 'N/A'}
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                         <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, color: 'var(--c-text-2)' }}>
                           <Warehouse size={13} />
                           {item.warehouseId || customization.defaultWarehouse}
@@ -392,7 +430,7 @@ export default function AdminInventoryPage() {
                           {item.availableQuantity}
                         </span>
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                         {item.reservedQuantity > 0 ? (
                           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--info)', background: 'var(--info-light)', padding: '2px 8px', borderRadius: 'var(--r-full)', display: 'inline-flex', alignItems: 'center', gap: 4, border: '1px solid var(--border-subtle)' }}>
                             <Lock size={10} />
@@ -405,7 +443,7 @@ export default function AdminInventoryPage() {
                       <td style={{ padding: '14px 16px', fontWeight: 700, color: 'var(--c-text-2)' }}>
                         {item.totalQuantity}
                       </td>
-                      <td style={{ padding: '14px 16px' }}>
+                      <td style={{ padding: '14px 16px', whiteSpace: 'nowrap' }}>
                         {isZero ? (
                           <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', background: 'var(--danger-light)', padding: '3px 9px', borderRadius: 'var(--r-full)', border: '1px solid var(--border-subtle)' }}>
                             Out of Stock
@@ -420,7 +458,7 @@ export default function AdminInventoryPage() {
                           </span>
                         )}
                       </td>
-                      <td style={{ padding: '14px 20px', textAlign: 'right' }}>
+                      <td style={{ padding: '14px 20px', textAlign: 'right', whiteSpace: 'nowrap' }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                           <button
                             onClick={(e) => handleQuickAdjust(item.productId, -5, e)}
@@ -488,6 +526,65 @@ export default function AdminInventoryPage() {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Bar */}
+        {totalItems > 0 && (
+          <div className="pagination-container">
+            <div style={{ fontSize: 12, color: 'var(--c-text-3)', fontWeight: 500 }}>
+              Showing <strong style={{ color: 'var(--c-text-1)' }}>{(currentPage - 1) * pageSize + 1}</strong> to{' '}
+              <strong style={{ color: 'var(--c-text-1)' }}>{Math.min(currentPage * pageSize, totalItems)}</strong> of{' '}
+              <strong style={{ color: 'var(--c-text-1)' }}>{totalItems}</strong> SKUs
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="pagination-btn"
+                title="Previous page"
+              >
+                <ChevronLeft size={16} />
+              </button>
+
+              {Array.from({ length: totalPages }).map((_, idx) => {
+                const pageNum = idx + 1;
+                // Display surrounding pages or first/last
+                if (
+                  pageNum === 1 ||
+                  pageNum === totalPages ||
+                  (pageNum >= currentPage - 1 && pageNum <= currentPage + 1)
+                ) {
+                  return (
+                    <button
+                      key={pageNum}
+                      onClick={() => setCurrentPage(pageNum)}
+                      className={`pagination-btn ${currentPage === pageNum ? 'active' : ''}`}
+                    >
+                      {pageNum}
+                    </button>
+                  );
+                }
+                if (pageNum === currentPage - 2 || pageNum === currentPage + 2) {
+                  return (
+                    <span key={pageNum} style={{ color: 'var(--c-text-3)', padding: '0 4px', fontSize: 12 }}>
+                      ...
+                    </span>
+                  );
+                }
+                return null;
+              })}
+
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="pagination-btn"
+                title="Next page"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Adjust Stock Modal */}
