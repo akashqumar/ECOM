@@ -251,12 +251,12 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           display: 'flex',
           flexDirection: 'column',
           minWidth: 0,
-          overflowX: 'hidden',
           marginLeft: 270,
         }}
       >
-        {/* Top Header Bar */}
+        {/* Top Header Bar - Fixed to Top of Viewport */}
         <header
+          className="admin-top-header"
           style={{
             height: 64,
             background: 'var(--glass-bg)',
@@ -268,9 +268,11 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '0 24px',
-            position: 'sticky',
+            position: 'fixed',
             top: 0,
-            zIndex: 30,
+            left: 270,
+            right: 0,
+            zIndex: 35,
           }}
         >
           {/* Mobile hamburger */}
@@ -368,7 +370,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
             padding: '24px clamp(16px, 2.5vw, 32px)',
             maxWidth: 1600,
             width: '100%',
-            margin: '0 auto',
+            margin: '64px auto 0 auto',
             boxSizing: 'border-box',
           }}
         >
@@ -464,6 +466,7 @@ export function AdminLayout({ children }: { children: React.ReactNode }) {
           .admin-desktop-sidebar { display: none !important; }
           .admin-mobile-menu-btn { display: block !important; }
           .admin-main-content { margin-left: 0 !important; }
+          .admin-top-header { left: 0 !important; }
         }
       `}</style>
     </div>
