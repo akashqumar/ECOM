@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { catalogApi } from '../services/api';
 import { useCart, useWishlist } from '../context/AppContext';
 import { Product } from '../types';
@@ -21,7 +21,8 @@ import {
 export default function ProductDetailPage() {
   const params = useParams<{ productId?: string; id?: string }>();
   const id = params.productId || params.id;
-  const { addItem } = useCart();
+  const navigate = useNavigate();
+  const { cart, addItem } = useCart();
   const { isWishlisted, toggleWishlist } = useWishlist();
 
   const [product, setProduct] = useState<Product | null>(null);
@@ -31,6 +32,7 @@ export default function ProductDetailPage() {
   const [activeImage, setActiveImage] = useState(0);
   const [imageFitMode, setImageFitMode] = useState<'contain' | 'cover'>('cover');
   const [quantity, setQuantity] = useState(1);
+  const [addedQuantity, setAddedQuantity] = useState<number | null>(null);
   const [isAdding, setIsAdding] = useState(false);
   const [addSuccess, setAddSuccess] = useState(false);
   const [expandedSection, setExpandedSection] = useState<string | null>('details');
@@ -62,6 +64,12 @@ export default function ProductDetailPage() {
 
   const handleAddToCart = async () => {
     if (!product || isAdding) return;
+
+    // If already added with this exact quantity, clicking directs user to Bag
+    if (addedQuantity === quantity) {
+      navigate('/cart');
+      return;
+    }
     
     setIsAdding(true);
     try {
@@ -73,6 +81,7 @@ export default function ProductDetailPage() {
         sku: product.sku
       }, quantity);
       
+      setAddedQuantity(quantity);
       setAddSuccess(true);
       setTimeout(() => {
         setAddSuccess(false);
@@ -443,6 +452,15 @@ export default function ProductDetailPage() {
         .add-to-bag-main:hover {
           opacity: 0.9;
         }
+        .add-to-bag-main.in-bag {
+          background: var(--c-surface-raised);
+          color: var(--c-text-1);
+          border: 1px solid var(--c-border);
+        }
+        .add-to-bag-main.in-bag:hover {
+          background: var(--c-accent);
+          color: var(--c-accent-fg);
+        }
         .add-to-bag-main:disabled {
           opacity: 0.7;
           cursor: not-allowed;
@@ -762,17 +780,25 @@ export default function ProductDetailPage() {
             </div>
 
             <button 
-              className="add-to-bag-main" 
+              className={`add-to-bag-main ${addedQuantity === quantity ? 'in-bag' : ''}`}
               onClick={handleAddToCart}
               disabled={isAdding}
+              title={addedQuantity === quantity ? 'Item is already in your bag. Click to view bag.' : 'Add to Bag'}
             >
               {isAdding ? (
                 <div className="spinner" style={{ width: 20, height: 20, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />
               ) : addSuccess ? (
                 <>
                   <Check size={20} />
-                  Added to Bag
+                  Added to Bag!
                 </>
+              ) : addedQuantity === quantity ? (
+                <>
+                  <Check size={18} />
+                  <span>In Bag &bull; View Bag &rarr;</span>
+                </>
+              ) : addedQuantity !== null ? (
+                <span>Update Bag ({quantity})</span>
               ) : (
                 'Add to Bag'
               )}

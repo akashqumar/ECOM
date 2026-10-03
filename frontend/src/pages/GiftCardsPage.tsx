@@ -52,10 +52,19 @@ export default function GiftCardsPage() {
 
   const finalAmount = customAmount ? parseFloat(customAmount) || 0 : amount;
 
+  const currentConfigHash = `${finalAmount}|${recipientName.trim()}|${recipientEmail.trim()}|${senderName.trim()}|${cardTheme}`;
+  const [lastAddedConfigHash, setLastAddedConfigHash] = useState<string | null>(null);
+  const isCardAlreadyInBag = lastAddedConfigHash === currentConfigHash;
+
   // Add to Shopping Bag
   const handleAddToCart = (e: React.FormEvent) => {
     e.preventDefault();
     if (finalAmount < 10) return;
+
+    if (isCardAlreadyInBag) {
+      navigate('/cart');
+      return;
+    }
 
     addItem({
       id: `gift-card-${finalAmount}-${Date.now()}`,
@@ -65,6 +74,7 @@ export default function GiftCardsPage() {
       sku: `GC-${cardTheme.toUpperCase()}-${finalAmount}`
     }, 1);
 
+    setLastAddedConfigHash(currentConfigHash);
     setAdded(true);
     setTimeout(() => setAdded(false), 2200);
   };
@@ -334,6 +344,11 @@ export default function GiftCardsPage() {
                     <>
                       <Check size={18} />
                       <span>Added to Bag!</span>
+                    </>
+                  ) : isCardAlreadyInBag ? (
+                    <>
+                      <Check size={18} />
+                      <span>In Bag &bull; View Bag &rarr;</span>
                     </>
                   ) : (
                     <>
