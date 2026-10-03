@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import {
   Boxes,
   Search,
@@ -531,20 +532,25 @@ export default function AdminInventoryPage() {
         )}
       </div>
 
-      {/* Adjust Stock Modal */}
-      {selectedItem && (
+      {/* Adjust Stock Modal Portaled to Document Body */}
+      {selectedItem && typeof document !== 'undefined' && createPortal(
         <div
           style={{
             position: 'fixed',
-            inset: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(5, 10, 20, 0.70)',
+            backdropFilter: 'blur(12px)',
+            WebkitBackdropFilter: 'blur(12px)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             padding: 24,
-            zIndex: 1000,
+            zIndex: 99999,
           }}
           onClick={() => setSelectedItem(null)}
         >
@@ -552,19 +558,20 @@ export default function AdminInventoryPage() {
             className="glass-panel"
             style={{
               width: '100%',
-              maxWidth: 500,
-              padding: 32,
+              maxWidth: 480,
+              padding: 30,
               boxShadow: 'var(--glass-hover-shadow), var(--glass-highlight)',
-              animation: 'scaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)',
+              animation: 'scaleIn 0.2s cubic-bezier(0.16, 1, 0.3, 1)',
+              position: 'relative',
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <div
                   style={{
-                    width: 42,
-                    height: 42,
+                    width: 40,
+                    height: 40,
                     borderRadius: 'var(--r-md)',
                     background: 'var(--accent-light)',
                     color: 'var(--accent)',
@@ -574,37 +581,49 @@ export default function AdminInventoryPage() {
                     border: '1px solid var(--border-subtle)',
                   }}
                 >
-                  <Boxes size={22} />
+                  <Boxes size={20} />
                 </div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: 'var(--c-text-1)' }}>Adjust Stock Level</h3>
+                  <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--c-text-1)' }}>Adjust Stock Level</h3>
                   <span style={{ fontSize: 12, color: 'var(--c-text-3)', fontFamily: 'monospace' }}>
                     {selectedItem.product?.sku || selectedItem.productId}
                   </span>
                 </div>
               </div>
-              <button onClick={() => setSelectedItem(null)} style={{ background: 'transparent', border: 'none', color: 'var(--c-text-3)', cursor: 'pointer', padding: 4 }}>
+              <button
+                onClick={() => setSelectedItem(null)}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: 'var(--c-text-3)',
+                  cursor: 'pointer',
+                  padding: 6,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleModalAdjustSubmit}>
-              <div style={{ marginBottom: 22 }}>
+              <div style={{ marginBottom: 20 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--c-text-2)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Stock Delta Adjustment
                 </label>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <button type="button" onClick={() => setAdjustDelta((d) => d - 10)} className="glass-btn" style={{ padding: '10px 14px' }}>-10</button>
-                  <button type="button" onClick={() => setAdjustDelta((d) => d - 1)} className="glass-btn" style={{ padding: '10px 14px' }}>-1</button>
+                  <button type="button" onClick={() => setAdjustDelta((d) => d - 10)} className="glass-btn" style={{ padding: '8px 12px' }}>-10</button>
+                  <button type="button" onClick={() => setAdjustDelta((d) => d - 1)} className="glass-btn" style={{ padding: '8px 12px' }}>-1</button>
                   <input
                     type="number"
                     value={adjustDelta}
                     onChange={(e) => setAdjustDelta(parseInt(e.target.value) || 0)}
                     className="glass-input"
-                    style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 800, padding: '10px', borderRadius: 'var(--radius-sm)' }}
+                    style={{ flex: 1, textAlign: 'center', fontSize: 18, fontWeight: 800, padding: '8px', borderRadius: 'var(--radius-sm)' }}
                   />
-                  <button type="button" onClick={() => setAdjustDelta((d) => d + 1)} className="glass-btn" style={{ padding: '10px 14px' }}>+1</button>
-                  <button type="button" onClick={() => setAdjustDelta((d) => d + 10)} className="glass-btn" style={{ padding: '10px 14px' }}>+10</button>
+                  <button type="button" onClick={() => setAdjustDelta((d) => d + 1)} className="glass-btn" style={{ padding: '8px 12px' }}>+1</button>
+                  <button type="button" onClick={() => setAdjustDelta((d) => d + 10)} className="glass-btn" style={{ padding: '8px 12px' }}>+10</button>
                 </div>
 
                 <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
@@ -624,34 +643,35 @@ export default function AdminInventoryPage() {
 
               <div
                 style={{
-                  padding: '14px 18px',
+                  padding: '12px 16px',
                   borderRadius: 'var(--radius-sm)',
                   background: 'var(--glass-bg)',
                   border: '1px solid var(--border-subtle)',
                   boxShadow: 'var(--glass-highlight)',
-                  marginBottom: 24,
+                  marginBottom: 22,
                   display: 'flex',
                   justifyContent: 'space-between',
                   alignItems: 'center',
                 }}
               >
                 <span style={{ fontSize: 13, color: 'var(--c-text-2)' }}>Projected Stock Level:</span>
-                <span style={{ fontSize: 16, fontWeight: 800, color: 'var(--accent)' }}>
+                <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--accent)' }}>
                   {selectedItem.availableQuantity} → {Math.max(0, selectedItem.availableQuantity + adjustDelta)} units
                 </span>
               </div>
 
               <div style={{ display: 'flex', gap: 12 }}>
-                <button type="button" onClick={() => setSelectedItem(null)} className="glass-btn" style={{ flex: 1, padding: '12px' }}>
+                <button type="button" onClick={() => setSelectedItem(null)} className="glass-btn" style={{ flex: 1, padding: '10px' }}>
                   Cancel
                 </button>
-                <button type="submit" disabled={isAdjusting} className="glass-btn-primary" style={{ flex: 2, padding: '12px' }}>
+                <button type="submit" disabled={isAdjusting} className="glass-btn-primary" style={{ flex: 2, padding: '10px' }}>
                   {isAdjusting ? 'Committing Atomic Update...' : 'Confirm Atomic Stock Update'}
                 </button>
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
